@@ -1,3 +1,5 @@
+import helmet from '@fastify/helmet';
+import rateLimit from '@fastify/rate-limit';
 import Fastify, { FastifyInstance } from 'fastify';
 import cors from '@fastify/cors';
 import jwt from '@fastify/jwt';
@@ -16,6 +18,45 @@ dotenv.config();
 export async function buildApp(): Promise<FastifyInstance> {
   const fastify = Fastify({
     logger: true,
+  });
+
+  // Security Headers via Helmet
+  await fastify.register(helmet, {
+    contentSecurityPolicy: false,
+    crossOriginResourcePolicy: { policy: 'cross-origin' },
+  });
+
+  // Global Rate Limiting (Prevents DDoS and Auto-Scrapers)
+  await fastify.register(rateLimit, {
+    max: 150,
+    timeWindow: '1 minute',
+    errorResponseBuilder: (req, context) => ({
+      statusCode: 429,
+      error: 'Too Many Requests',
+      message: 'Rate limit exceeded. Automated scraping is restricted.',
+    }),
+  });
+
+  // Anti-Crawler User-Agent Filter Hook
+  const blockedScrapers = [
+    'scrapy', 'sqlmap', 'nikto', 'curb', 'python-requests', 'python-urllib',
+    'libwww', 'httpclient', 'auto_crawler', 'semrushbot', 'ahrefsbot',
+    'dotbot', 'mj12bot', 'bytespider', 'zoominfobot'
+  ];
+
+  fastify.addHook('onRequest', async (request, reply) => {
+    // Exempt health pings, robots.txt, and swagger docs
+    if (request.url === '/health' || request.url === '/robots.txt' || request.url.startsWith('/documentation')) {
+      return;
+    }
+    const ua = (request.headers['user-agent'] || '').toLowerCase();
+    if (blockedScrapers.some((bot) => ua.includes(bot))) {
+      reply.status(403).send({
+        error: 'Forbidden',
+        message: 'Automated scraping and crawling are prohibited on this API.',
+      });
+      return;
+    }
   });
 
   // 1. CORS Configuration

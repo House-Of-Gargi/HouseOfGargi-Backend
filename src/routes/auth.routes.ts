@@ -20,6 +20,12 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
   fastify.post<{ Body: SendOtpBodyType }>(
     '/otp/send',
     {
+      config: {
+        rateLimit: {
+          max: 5,
+          timeWindow: '5 minutes',
+        },
+      },
       schema: {
         tags: ['Authentication'],
         summary: 'Generate and send a 6-digit cryptographic OTP to patron email',
