@@ -24,12 +24,17 @@ export async function fetchLiveCatalog(): Promise<Product[]> {
         name: item.name,
         category: item.category,
         price: item.price_in_rupees || item.price || 0,
-        stock: item.stock ?? 10,
         region: item.region || 'India',
+        artisanNote: item.artisan_note || item.artisanNote || 'Crafted by master weavers in India',
+        fabric: item.fabric || item.material || 'Pure Silk',
         technique: item.technique || 'Handloom Weave',
-        material: item.material || 'Pure Silk',
+        occasion: item.occasion || 'Bridal & Festive',
         description: item.description || `${item.name} handcrafted by master artisans.`,
-        image: item.image_url || item.image || '/images/category-sarees.png',
+        images:
+          item.images && Array.isArray(item.images)
+            ? item.images
+            : [item.image_url || '/images/category-sarees.png'],
+        inStock: item.stock !== undefined ? item.stock > 0 : true,
         featured: item.featured ?? false,
       }));
 
@@ -48,7 +53,7 @@ export async function fetchLiveCatalog(): Promise<Product[]> {
       return combined;
     }
   } catch (err) {
-    console.warn('[CatalogService] Supabase live fetch failed, serving fallback catalog:', err);
+    console.warn('[CatalogService] Supabase live fetch fallback:', err);
   }
 
   // Fallback to static catalog if DB is cold or empty
@@ -83,7 +88,7 @@ export async function getFilteredProducts(filters: {
         p.name.toLowerCase().includes(q) ||
         p.region.toLowerCase().includes(q) ||
         p.technique.toLowerCase().includes(q) ||
-        p.material.toLowerCase().includes(q)
+        p.fabric.toLowerCase().includes(q)
     );
   }
 

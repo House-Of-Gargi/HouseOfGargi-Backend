@@ -225,7 +225,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await fastify.register(sellerRoutes, { prefix: '/api/v1/seller' });
 
   // 12. Standard RFC 7807 Global Error Handler
-  fastify.setErrorHandler((error, request, reply) => {
+  fastify.setErrorHandler((error: any, request, reply) => {
     const statusCode = error.statusCode || 500;
     const isProduction = process.env.NODE_ENV === 'production';
 
