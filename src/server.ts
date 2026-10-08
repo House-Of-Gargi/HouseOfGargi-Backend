@@ -10,6 +10,22 @@ const host = process.env.HOST || '0.0.0.0';
 async function main() {
   const app = await buildApp();
 
+  // Graceful Process Termination (Handles Render rolling deploys)
+  const terminateSignals: NodeJS.Signals[] = ['SIGTERM', 'SIGINT'];
+  for (const sig of terminateSignals) {
+    process.on(sig, async () => {
+      console.log(`\n[Shutdown] Caught ${sig}. Gracefully draining connections...`);
+      try {
+        await app.close();
+        console.log('[Shutdown] Fastify server closed safely.');
+        process.exit(0);
+      } catch (err) {
+        console.error('[Shutdown Error]', err);
+        process.exit(1);
+      }
+    });
+  }
+
   try {
     await app.listen({ port, host });
     console.log(`\n======================================================`);

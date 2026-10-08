@@ -1,7 +1,11 @@
 import { FastifyPluginAsync } from 'fastify';
 import { Type, Static } from '@sinclair/typebox';
-import { products, categories, Product } from '../db/catalog.js';
-import { supabase } from '../db/supabase.js';
+import {
+  getFilteredProducts,
+  getProductById,
+  getCuratedCategories,
+  invalidateCatalogCache,
+} from '../services/catalog.service.js';
 
 const GetProductsQuery = Type.Object({
   category: Type.Optional(Type.String()),
@@ -21,6 +25,7 @@ export const productsRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (_request, reply) => {
+      const categories = getCuratedCategories();
       return reply.send({
         success: true,
         count: categories.length,
@@ -35,54 +40,19 @@ export const productsRoutes: FastifyPluginAsync = async (fastify) => {
     {
       schema: {
         tags: ['Catalog'],
-        summary: 'List products with optional category, search, or featured filtering',
+        summary: 'List products with cached PostgreSQL querying and search filters',
         querystring: GetProductsQuery,
       },
     },
     async (request, reply) => {
       const { category, featured, search } = request.query;
-
-      // Try fetching from Supabase PostgreSQL first
-      try {
-        let query = supabase.from('products').select('*');
-        if (category) query = query.eq('category', category);
-        if (featured !== undefined) query = query.eq('featured', featured);
-
-        const { data, error } = await query;
-        if (!error && data && data.length > 0) {
-          return reply.send({
-            success: true,
-            count: data.length,
-            products: data,
-          });
-        }
-      } catch (dbErr) {
-        fastify.log.warn({ err: dbErr }, 'Supabase query fallback to in-memory catalog');
-      }
-
-      // In-memory fallback
-      let result = [...products];
-      if (category) {
-        result = result.filter((p) => p.category.toLowerCase() === category.toLowerCase());
-      }
-      if (featured) {
-        result = result.filter((p) => p.featured === true);
-      }
-      if (search) {
-        const q = search.toLowerCase();
-        result = result.filter(
-          (p) =>
-            p.name.toLowerCase().includes(q) ||
-            p.region.toLowerCase().includes(q) ||
-            p.technique.toLowerCase().includes(q)
-        );
-      }
+      const products = await getFilteredProducts({ category, featured, search });
 
       return reply.send({
         success: true,
-        count: result.length,
-        categories,
-        products: result,
+        count: products.length,
+        categories: getCuratedCategories(),
+        products,
       });
     }
   );
@@ -93,17 +63,18 @@ export const productsRoutes: FastifyPluginAsync = async (fastify) => {
     {
       schema: {
         tags: ['Catalog'],
-        summary: 'Get complete product detail by ID',
+        summary: 'Get complete product detail by ID from live catalog',
         params: Type.Object({ id: Type.String() }),
       },
     },
     async (request, reply) => {
       const { id } = request.params;
+      const product = await getProductById(id);
 
-      const product = products.find((p) => p.id === id);
       if (!product) {
         return reply.status(404).send({
           success: false,
+          error: 'Not Found',
           message: `Product with ID '${id}' not found in atelier catalog.`,
         });
       }
@@ -111,6 +82,24 @@ export const productsRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.send({
         success: true,
         product,
+      });
+    }
+  );
+
+  // POST /api/v1/products/cache/invalidate
+  fastify.post(
+    '/cache/invalidate',
+    {
+      schema: {
+        tags: ['Catalog'],
+        summary: 'Invalidate in-memory catalog cache when products are updated in Supabase',
+      },
+    },
+    async (_request, reply) => {
+      invalidateCatalogCache();
+      return reply.send({
+        success: true,
+        message: 'Product catalog cache successfully invalidated and refreshed.',
       });
     }
   );
