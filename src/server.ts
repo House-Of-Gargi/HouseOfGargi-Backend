@@ -1,3 +1,4 @@
+import process from 'node:process';
 import { buildApp } from './app.js';
 import dotenv from 'dotenv';
 

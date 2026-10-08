@@ -1,4 +1,6 @@
-import crypto from 'crypto';
+import crypto from 'node:crypto';
+import process from 'node:process';
+import { Buffer } from 'node:buffer';
 import { Resend } from 'resend';
 import dotenv from 'dotenv';
 
