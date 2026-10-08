@@ -21,7 +21,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   // 1. CORS Configuration
   const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
   await fastify.register(cors, {
-    origin: [frontendUrl, 'http://localhost:3000', 'https://www.gargisaha.com'],
+    origin: [frontendUrl, 'http://localhost:3000', 'http://localhost:3001', 'https://www.gargisaha.com', 'https://gargisaha.com'],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
@@ -107,3 +107,4 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   return fastify;
 }
+
