@@ -14,10 +14,14 @@ async function main() {
     await app.listen({ port, host });
     console.log(`\n======================================================`);
     console.log(`✦ House of Gargi Fastify Backend Service Started ✦`);
-    console.log(`  API Gateway:      http://localhost:${port}`);
-    console.log(`  Swagger OpenAPI:  http://localhost:${port}/documentation`);
-    console.log(`  Health Check:     http://localhost:${port}/health`);
-    console.log(`  WebSocket Hub:    ws://localhost:${port}/ws/sync`);
+    const baseUrl = process.env.RENDER_EXTERNAL_URL || `http://localhost:${port}`;
+    const wsUrl = process.env.RENDER_EXTERNAL_URL
+      ? process.env.RENDER_EXTERNAL_URL.replace(/^http/, 'ws') + '/ws/sync'
+      : `ws://localhost:${port}/ws/sync`;
+    console.log(`  API Gateway:      ${baseUrl}`);
+    console.log(`  Swagger OpenAPI:  ${baseUrl}/documentation`);
+    console.log(`  Health Check:     ${baseUrl}/health`);
+    console.log(`  WebSocket Hub:    ${wsUrl}`);
     console.log(`======================================================\n`);
   } catch (err) {
     app.log.error(err);
