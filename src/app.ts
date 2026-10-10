@@ -13,6 +13,9 @@ import { authRoutes } from './routes/auth.routes.js';
 import { productsRoutes } from './routes/products.routes.js';
 import { ordersRoutes } from './routes/orders.routes.js';
 import { sellerRoutes } from './routes/seller.routes.js';
+import { adminRoutes } from './routes/admin.routes.js';
+import { superAdminRoutes } from './routes/super-admin.routes.js';
+import { categoriesRoutes } from './routes/categories.routes.js';
 import { supabase } from './db/supabase.js';
 
 dotenv.config();
@@ -223,6 +226,9 @@ export async function buildApp(): Promise<FastifyInstance> {
   await fastify.register(productsRoutes, { prefix: '/api/v1/products' });
   await fastify.register(ordersRoutes, { prefix: '/api/v1/orders' });
   await fastify.register(sellerRoutes, { prefix: '/api/v1/seller' });
+  await fastify.register(adminRoutes, { prefix: '/api/v1/admin' });
+  await fastify.register(superAdminRoutes, { prefix: '/api/v1/super-admin' });
+  await fastify.register(categoriesRoutes, { prefix: '/api/v1/categories' });
 
   // 12. Standard RFC 7807 Global Error Handler
   fastify.setErrorHandler((error: any, request, reply) => {
