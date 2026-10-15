@@ -15,6 +15,10 @@ const NOREPLY_EMAIL = process.env.NOREPLY_EMAIL || 'noreply@gargisaha.com';
 
 const resend = new Resend(resendApiKey);
 
+export function generateOtp(): string {
+  return crypto.randomInt(100000, 1000000).toString();
+}
+
 export function generateHmacToken(email: string, otp: string, expiresAt: number): string {
   const payload = `${email.toLowerCase().trim()}:${otp.trim()}:${expiresAt}`;
   return crypto.createHmac('sha256', AUTH_SECRET).update(payload).digest('hex');
@@ -23,7 +27,44 @@ export function generateHmacToken(email: string, otp: string, expiresAt: number)
 export function verifyHmacToken(email: string, otp: string, expiresAt: number, token: string): boolean {
   if (Date.now() > expiresAt) return false;
   const expectedToken = generateHmacToken(email, otp, expiresAt);
-  return crypto.timingSafeEqual(Buffer.from(token), Buffer.from(expectedToken));
+  const bufToken = Buffer.from(token);
+  const bufExpected = Buffer.from(expectedToken);
+  if (bufToken.length !== bufExpected.length) return false;
+  return crypto.timingSafeEqual(bufToken, bufExpected);
+}
+
+export async function isTokenUsed(token: string): Promise<boolean> {
+  try {
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const { supabase } = await import('../db/supabase.js');
+    const { data, error } = await supabase
+      .from('otp_used_tokens')
+      .select('token_hash')
+      .eq('token_hash', tokenHash)
+      .maybeSingle();
+
+    if (error) {
+      // Table might not exist yet if migration 0017 has not been run
+      return false;
+    }
+    return Boolean(data);
+  } catch {
+    return false;
+  }
+}
+
+export async function recordUsedToken(token: string, email: string): Promise<void> {
+  try {
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const { supabase } = await import('../db/supabase.js');
+    await supabase.from('otp_used_tokens').insert({
+      token_hash: tokenHash,
+      user_email: email.toLowerCase().trim(),
+      used_at: new Date().toISOString(),
+    });
+  } catch (err) {
+    console.warn('[OTP Hardening] Warning recording used token:', err);
+  }
 }
 
 export async function sendOtpEmail(email: string, otp: string): Promise<boolean> {

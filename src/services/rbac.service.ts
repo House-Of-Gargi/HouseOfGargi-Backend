@@ -2,35 +2,34 @@ import { supabase } from '../db/supabase.js';
 
 export type AppRole = 'patron' | 'artisan' | 'admin' | 'super_admin';
 
-export const VERIFIED_ROLES: Record<string, AppRole> = {
-  'tanmaysaaagr@gmail.com': 'super_admin',
-  'tanmaysaagar@gmail.com': 'super_admin',
-  'gargisaha1508@gmail.com': 'super_admin',
-  'shawsumit6286@gmail.com': 'super_admin',
-  'sumitgreat2705@gmail.com': 'admin',
-  'admin@gargisaha.com': 'admin',
-  'curator@gargisaha.com': 'admin',
-  'artisan@gargisaha.com': 'artisan',
-};
-
 export async function getBackendUserRole(email: string): Promise<AppRole> {
   const cleanEmail = email.toLowerCase().trim();
 
-  // Ground truth registry check
-  if (VERIFIED_ROLES[cleanEmail]) {
-    return VERIFIED_ROLES[cleanEmail];
-  }
-
-  // Supabase lookup
   try {
-    const { data } = await supabase
+    // 1. Check user_roles table (super_admin, admin, artisan, patron)
+    const { data: roleData, error: roleError } = await supabase
       .from('user_roles')
       .select('role')
       .eq('user_email', cleanEmail)
       .maybeSingle();
 
-    if (data?.role) return data.role as AppRole;
-  } catch {}
+    if (!roleError && roleData?.role) {
+      return roleData.role as AppRole;
+    }
+
+    // 2. Check artisan_profiles
+    const { data: artisanData, error: artisanError } = await supabase
+      .from('artisan_profiles')
+      .select('id')
+      .eq('user_email', cleanEmail)
+      .maybeSingle();
+
+    if (!artisanError && artisanData) {
+      return 'artisan';
+    }
+  } catch (err) {
+    console.warn('[RBAC Service] Supabase role resolution error:', err);
+  }
 
   return 'patron';
 }
