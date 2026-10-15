@@ -153,13 +153,23 @@ export async function buildApp(): Promise<FastifyInstance> {
     };
   });
 
-  fastify.get('/health', async () => {
-    return {
-      status: 'healthy',
+  fastify.get('/health', async (_req, reply) => {
+    let dbStatus = 'ok';
+    try {
+      const { error } = await supabase.from('categories').select('id').limit(1);
+      if (error) dbStatus = 'down';
+    } catch {
+      dbStatus = 'down';
+    }
+
+    const isHealthy = dbStatus === 'ok';
+    return reply.status(isHealthy ? 200 : 503).send({
+      status: isHealthy ? 'healthy' : 'degraded',
       service: 'House of Gargi Fastify Backend',
       timestamp: new Date().toISOString(),
       uptime: process.uptime(),
-    };
+      db: dbStatus,
+    });
   });
 
   // 9. Coupon Verification Endpoint

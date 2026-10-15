@@ -63,24 +63,32 @@ export const adminRoutes: FastifyPluginAsync = async (fastify) => {
 
   // GET /api/v1/admin/products/approvals
   fastify.get('/products/approvals', async (_request, reply) => {
-    return reply.send({
-      success: true,
-      pendingCuration: [
-        {
-          id: 'qc-01',
-          name: 'Varanasi Shikargah Animal Motif Katan Saree',
-          artisan: 'Ramdas Mishra Pit Loom Guild',
-          price: 36000,
-          status: 'pending',
-        },
-        {
-          id: 'qc-02',
-          name: 'Korvai Peacock Border Contrast Saree',
-          artisan: 'Sundaramurthy Chettiar',
-          price: 29500,
-          status: 'pending',
-        },
-      ],
-    });
+    try {
+      const { data, error } = await supabase
+        .from('products')
+        .select('*')
+        .eq('is_hidden', true)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        return reply.status(500).send({ success: false, message: error.message });
+      }
+
+      const pendingCuration = (data || []).map((p: any) => ({
+        id: String(p.id),
+        name: p.name,
+        artisan: p.artisan_note || p.artisanNote || 'Master Weaver Guild',
+        price: p.price_in_rupees || p.price || 0,
+        status: 'pending',
+      }));
+
+      return reply.send({
+        success: true,
+        count: pendingCuration.length,
+        pendingCuration,
+      });
+    } catch (err: any) {
+      return reply.status(500).send({ success: false, message: err?.message || 'Failed to fetch curation approvals.' });
+    }
   });
 };
