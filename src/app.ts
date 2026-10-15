@@ -39,7 +39,15 @@ export async function buildApp(): Promise<FastifyInstance> {
 
   // 1. Security Headers via Helmet
   await fastify.register(helmet, {
-    contentSecurityPolicy: false,
+    contentSecurityPolicy:
+      process.env.NODE_ENV === 'production'
+        ? {
+            directives: {
+              defaultSrc: ["'none'"],
+              frameAncestors: ["'none'"],
+            },
+          }
+        : false,
     crossOriginResourcePolicy: { policy: 'cross-origin' },
   });
 

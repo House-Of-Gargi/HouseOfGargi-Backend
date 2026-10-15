@@ -12,7 +12,7 @@ const EnvSchema = Type.Object({
   ),
   PORT: Type.String({ default: '5000' }),
   FRONTEND_URL: Type.String({ default: 'http://localhost:3000' }),
-  SUPABASE_URL: Type.String({ default: 'https://wlivgkosmbfgjtecvznj.supabase.co' }),
+  SUPABASE_URL: Type.String({ minLength: 10 }),
   SUPABASE_SERVICE_ROLE_KEY: Type.String({ minLength: 20 }),
   JWT_SECRET: Type.String({ default: 'house_of_gargi_dev_jwt_secret_only' }),
   AUTH_SECRET: Type.String({ default: 'house_of_gargi_dev_auth_secret_only' }),
