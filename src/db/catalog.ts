@@ -15,10 +15,11 @@ export interface Product {
 }
 
 export const categories = [
-  { id: 'sarees', name: 'Sarees', image: '/images/cat-sarees.png', count: 12 },
-  { id: 'lehengas', name: 'Lehengas', image: '/images/cat-lehengas.png', count: 8 },
-  { id: 'kurta-sets', name: 'Kurta Sets', image: '/images/cat-kurta.png', count: 10 },
-  { id: 'accessories', name: 'Accessories', image: '/images/cat-jewellery.png', count: 6 },
+  { id: 'sarees', name: 'Sarees', slug: 'sarees', image: '/images/category-sarees.png', count: 14 },
+  { id: 'lehengas', name: 'Lehengas', slug: 'lehengas', image: '/images/category-lehengas.png', count: 8 },
+  { id: 'kurta-sets', name: 'Kurta Sets', slug: 'kurta-sets', image: '/images/category-kurtas.png', count: 6 },
+  { id: 'accessories', name: 'Accessories', slug: 'accessories', image: '/images/category-accessories.png', count: 11 },
+  { id: 'bespoke', name: 'Bespoke', slug: 'bespoke', image: '/images/category-bespoke.png', count: 4 },
 ];
 
 export const products: Product[] = [

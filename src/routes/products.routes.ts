@@ -25,7 +25,7 @@ export const productsRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (_request, reply) => {
-      const categories = getCuratedCategories();
+      const categories = await getCuratedCategories();
       return reply.send({
         success: true,
         count: categories.length,
@@ -47,11 +47,12 @@ export const productsRoutes: FastifyPluginAsync = async (fastify) => {
     async (request, reply) => {
       const { category, featured, search } = request.query;
       const products = await getFilteredProducts({ category, featured, search });
+      const categories = await getCuratedCategories();
 
       return reply.send({
         success: true,
         count: products.length,
-        categories: getCuratedCategories(),
+        categories,
         products,
       });
     }

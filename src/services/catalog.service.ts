@@ -104,6 +104,26 @@ export function invalidateCatalogCache(): void {
   catalogCache = null;
 }
 
-export function getCuratedCategories() {
+export async function getCuratedCategories(): Promise<any[]> {
+  try {
+    const { data, error } = await supabase
+      .from('categories')
+      .select('*')
+      .eq('is_active', true)
+      .order('display_order', { ascending: true });
+    if (!error && data && data.length > 0) {
+      return data.map((c: any) => ({
+        id: c.id,
+        name: c.name,
+        slug: c.slug || c.id,
+        description: c.description,
+        imageUrl: c.image_url || '/images/category-sarees.png',
+        displayOrder: c.display_order,
+        isActive: c.is_active,
+      }));
+    }
+  } catch (err) {
+    console.warn('[CatalogService] Categories fetch fallback:', err);
+  }
   return categories;
 }
