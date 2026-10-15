@@ -4,6 +4,8 @@ import {
   getFilteredProducts,
   getProductById,
   getCuratedCategories,
+  getFeaturedCurations,
+  getNewArrivals,
   invalidateCatalogCache,
 } from '../services/catalog.service.js';
 
@@ -15,6 +17,44 @@ const GetProductsQuery = Type.Object({
 type GetProductsQueryType = Static<typeof GetProductsQuery>;
 
 export const productsRoutes: FastifyPluginAsync = async (fastify) => {
+  // GET /api/v1/products/featured
+  fastify.get(
+    '/featured',
+    {
+      schema: {
+        tags: ['Catalog'],
+        summary: 'Retrieve top 6 featured curations ranked by sales with automated rank backfilling',
+      },
+    },
+    async (_request, reply) => {
+      const featured = await getFeaturedCurations(6);
+      return reply.send({
+        success: true,
+        count: featured.length,
+        products: featured,
+      });
+    }
+  );
+
+  // GET /api/v1/products/new-arrivals
+  fastify.get(
+    '/new-arrivals',
+    {
+      schema: {
+        tags: ['Catalog'],
+        summary: 'Retrieve top 12 newest active additions with automated backfilling',
+      },
+    },
+    async (_request, reply) => {
+      const arrivals = await getNewArrivals(12);
+      return reply.send({
+        success: true,
+        count: arrivals.length,
+        products: arrivals,
+      });
+    }
+  );
+
   // GET /api/v1/products/categories
   fastify.get(
     '/categories',

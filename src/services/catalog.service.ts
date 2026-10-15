@@ -9,6 +9,30 @@ interface CatalogCache {
 let catalogCache: CatalogCache | null = null;
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes TTL
 
+function mapProductRow(item: any): Product {
+  return {
+    id: item.slug || String(item.id),
+    name: item.name,
+    category: item.category,
+    price: item.price_in_rupees || item.price || 0,
+    region: item.region || 'India',
+    artisanNote: item.artisan_note || item.artisanNote || 'Crafted by master weavers in India',
+    fabric: item.fabric || item.material || 'Pure Silk',
+    technique: item.craft_technique || item.technique || 'Handloom Weave',
+    occasion: item.occasion || 'Bridal & Festive',
+    description: item.description || `${item.name} handcrafted by master artisans.`,
+    images:
+      item.images && Array.isArray(item.images)
+        ? item.images
+        : [item.image_url || '/images/category-sarees.png'],
+    inStock: item.stock !== undefined ? item.stock > 0 : true,
+    featured: Boolean(item.is_featured ?? item.featured),
+    isHidden: Boolean(item.is_hidden),
+    productNumber: item.product_number,
+    curationRank: item.curation_rank,
+  };
+}
+
 export async function fetchLiveCatalog(): Promise<Product[]> {
   const now = Date.now();
   if (catalogCache && now - catalogCache.cachedAt < CACHE_TTL_MS) {
@@ -18,25 +42,7 @@ export async function fetchLiveCatalog(): Promise<Product[]> {
   try {
     const { data, error } = await supabase.from('products').select('*');
     if (!error && data && data.length > 0) {
-      // Map Supabase columns to standard Product interface
-      const mappedProducts: Product[] = data.map((item: any) => ({
-        id: String(item.id),
-        name: item.name,
-        category: item.category,
-        price: item.price_in_rupees || item.price || 0,
-        region: item.region || 'India',
-        artisanNote: item.artisan_note || item.artisanNote || 'Crafted by master weavers in India',
-        fabric: item.fabric || item.material || 'Pure Silk',
-        technique: item.technique || 'Handloom Weave',
-        occasion: item.occasion || 'Bridal & Festive',
-        description: item.description || `${item.name} handcrafted by master artisans.`,
-        images:
-          item.images && Array.isArray(item.images)
-            ? item.images
-            : [item.image_url || '/images/category-sarees.png'],
-        inStock: item.stock !== undefined ? item.stock > 0 : true,
-        featured: item.featured ?? false,
-      }));
+      const mappedProducts: Product[] = data.map(mapProductRow);
 
       // Merge with fallback products to ensure complete catalog availability
       const combined = [...mappedProducts];
@@ -126,4 +132,45 @@ export async function getCuratedCategories(): Promise<any[]> {
     console.warn('[CatalogService] Categories fetch fallback:', err);
   }
   return categories;
+}
+
+export async function getFeaturedCurations(limit = 6): Promise<Product[]> {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('is_hidden', false)
+      .is('deleted_at', null)
+      .order('total_units_sold', { ascending: false })
+      .order('curation_rank', { ascending: true })
+      .limit(limit);
+
+    if (!error && data && data.length > 0) {
+      return data.map(mapProductRow);
+    }
+  } catch (err) {
+    console.warn('[CatalogService] Featured live fetch fallback:', err);
+  }
+  const all = await fetchLiveCatalog();
+  return all.filter((p) => !p.isHidden).slice(0, limit);
+}
+
+export async function getNewArrivals(limit = 12): Promise<Product[]> {
+  try {
+    const { data, error } = await supabase
+      .from('products')
+      .select('*')
+      .eq('is_hidden', false)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false })
+      .limit(limit);
+
+    if (!error && data && data.length > 0) {
+      return data.map(mapProductRow);
+    }
+  } catch (err) {
+    console.warn('[CatalogService] New arrivals live fetch fallback:', err);
+  }
+  const all = await fetchLiveCatalog();
+  return all.filter((p) => !p.isHidden).slice(0, limit);
 }

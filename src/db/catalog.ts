@@ -12,6 +12,9 @@ export interface Product {
   images: string[];
   inStock: boolean;
   featured?: boolean;
+  isHidden?: boolean;
+  productNumber?: string;
+  curationRank?: number;
 }
 
 export const categories = [
