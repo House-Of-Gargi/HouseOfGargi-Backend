@@ -1,6 +1,13 @@
 import { FastifyPluginAsync } from 'fastify';
 import { Type, Static } from '@sinclair/typebox';
-import { generateHmacToken, verifyHmacToken, sendOtpEmail } from '../services/auth.service.js';
+import {
+  generateOtp,
+  generateHmacToken,
+  verifyHmacToken,
+  sendOtpEmail,
+  isTokenUsed,
+  recordUsedToken,
+} from '../services/auth.service.js';
 import { getBackendUserRole } from '../services/rbac.service.js';
 
 const SendOtpBody = Type.Object({
@@ -37,7 +44,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       const { email } = request.body;
       const cleanEmail = email.toLowerCase().trim();
 
-      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const otp = generateOtp();
       const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
       const verificationToken = generateHmacToken(cleanEmail, otp, expiresAt);
 
@@ -58,7 +65,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     {
       schema: {
         tags: ['Authentication'],
-        summary: 'Verify 6-digit OTP against HMAC signature and issue JWT session with strict RBAC role',
+        summary: 'Verify 6-digit OTP against HMAC signature, enforce single-use replay protection, and issue httpOnly JWT session',
         body: VerifyOtpBody,
       },
     },
@@ -66,6 +73,16 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       const { email, otp, token, expiresAt } = request.body;
       const cleanEmail = email.toLowerCase().trim();
 
+      // 1. Single-use token validation (replay attack prevention)
+      const alreadyUsed = await isTokenUsed(token);
+      if (alreadyUsed) {
+        return reply.status(401).send({
+          success: false,
+          message: 'This access code has already been utilized. Please request a fresh transmission.',
+        });
+      }
+
+      // 2. Cryptographic HMAC validation
       const isValid = verifyHmacToken(cleanEmail, otp.trim(), expiresAt, token);
       const allowTestOtp = process.env.NODE_ENV !== 'production' && process.env.ALLOW_TEST_OTP === 'true';
       const isTestMatch = Boolean(allowTestOtp && process.env.TEST_OTP_CODE && otp.trim() === process.env.TEST_OTP_CODE);
@@ -77,14 +94,27 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
         });
       }
 
-      // Strict role resolution
+      // 3. Mark token as used to prevent any replay
+      await recordUsedToken(token, cleanEmail);
+
+      // 4. Strict role resolution from database
       const resolvedRole = await getBackendUserRole(cleanEmail);
 
-      // Issue JWT token with resolved role
+      // 5. Issue JWT token
       const jwtToken = fastify.jwt.sign(
         { email: cleanEmail, role: resolvedRole },
         { expiresIn: '30d' }
       );
+
+      // 6. Set httpOnly signed session cookie
+      reply.setCookie('hog_session', jwtToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        domain: process.env.COOKIE_DOMAIN || undefined,
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+      });
 
       return reply.status(200).send({
         success: true,
@@ -95,6 +125,66 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
           role: resolvedRole,
           authenticatedAt: new Date().toISOString(),
         },
+      });
+    }
+  );
+
+  // GET /api/v1/auth/me
+  fastify.get(
+    '/me',
+    {
+      schema: {
+        tags: ['Authentication'],
+        summary: 'Retrieve authenticated session user and real-time database role',
+      },
+    },
+    async (request, reply) => {
+      try {
+        await request.jwtVerify();
+      } catch {
+        return reply.status(401).send({
+          success: false,
+          message: 'No active authenticated session.',
+        });
+      }
+
+      const payload = request.user as { email?: string; role?: string } | undefined;
+      if (!payload?.email) {
+        return reply.status(401).send({
+          success: false,
+          message: 'Invalid session payload.',
+        });
+      }
+
+      const freshRole = await getBackendUserRole(payload.email);
+      return reply.status(200).send({
+        success: true,
+        user: {
+          email: payload.email,
+          role: freshRole,
+        },
+      });
+    }
+  );
+
+  // POST /api/v1/auth/logout
+  fastify.post(
+    '/logout',
+    {
+      schema: {
+        tags: ['Authentication'],
+        summary: 'Sign out and destroy session cookie',
+      },
+    },
+    async (_request, reply) => {
+      reply.clearCookie('hog_session', {
+        path: '/',
+        domain: process.env.COOKIE_DOMAIN || undefined,
+      });
+
+      return reply.status(200).send({
+        success: true,
+        message: 'Signed out successfully.',
       });
     }
   );

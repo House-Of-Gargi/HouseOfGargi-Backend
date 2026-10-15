@@ -9,6 +9,8 @@ import websocket from '@fastify/websocket';
 import dotenv from 'dotenv';
 import process from 'node:process';
 
+import cookie from '@fastify/cookie';
+import { authPlugin } from './plugins/auth.plugin.js';
 import { authRoutes } from './routes/auth.routes.js';
 import { productsRoutes } from './routes/products.routes.js';
 import { ordersRoutes } from './routes/orders.routes.js';
@@ -92,14 +94,28 @@ export async function buildApp(): Promise<FastifyInstance> {
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   });
 
-  // 5. JWT Plugin
+  // 5. Cookie & Session Plugin
   const jwtSecret = process.env.JWT_SECRET || (process.env.NODE_ENV !== 'production' ? 'house_of_gargi_dev_jwt_secret_only' : '');
   if (process.env.NODE_ENV === 'production' && !jwtSecret) {
     throw new Error('[FATAL] Missing required JWT_SECRET in production environment.');
   }
+
+  await fastify.register(cookie, {
+    secret: process.env.COOKIE_SECRET || jwtSecret,
+    parseOptions: {},
+  });
+
+  // 6. JWT Plugin with Cookie Extraction
   await fastify.register(jwt, {
     secret: jwtSecret,
+    cookie: {
+      cookieName: 'hog_session',
+      signed: false,
+    },
   });
+
+  // 7. Auth Plugin (requireRole & authenticate route guards)
+  await fastify.register(authPlugin);
 
   // 6. WebSockets Plugin
   await fastify.register(websocket);
