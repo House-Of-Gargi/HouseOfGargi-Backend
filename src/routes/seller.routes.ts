@@ -385,4 +385,73 @@ export const sellerRoutes: FastifyPluginAsync = async (fastify) => {
       return reply.status(500).send({ success: false, message: err?.message || 'Product deletion failed' });
     }
   });
+
+  // ==========================================
+  // 6. STORAGE & ASSET UPLOAD SIGNING
+  // ==========================================
+  // POST /api/v1/artisan/uploads/sign
+  fastify.post<{
+    Body: {
+      fileName: string;
+      contentType: string;
+      fileSizeBytes?: number;
+    };
+  }>('/uploads/sign', async (request, reply) => {
+    const { fileName, contentType, fileSizeBytes } = request.body;
+
+    if (!fileName || !contentType) {
+      return reply.status(400).send({
+        success: false,
+        message: 'fileName and contentType are required.',
+      });
+    }
+
+    // Validate MIME type
+    const allowedMime = ['image/jpeg', 'image/png', 'image/webp', 'image/avif'];
+    if (!allowedMime.includes(contentType.toLowerCase())) {
+      return reply.status(400).send({
+        success: false,
+        message: 'Invalid MIME type. Only JPEG, PNG, WEBP, and AVIF images are permitted.',
+      });
+    }
+
+    // Validate size (≤ 5 MB)
+    const MAX_SIZE_BYTES = 5 * 1024 * 1024;
+    if (fileSizeBytes && fileSizeBytes > MAX_SIZE_BYTES) {
+      return reply.status(400).send({
+        success: false,
+        message: 'File size exceeds maximum permitted limit of 5 MB.',
+      });
+    }
+
+    const cleanExt = fileName.split('.').pop()?.toLowerCase() || 'jpg';
+    const filePath = `artisan-products/${Date.now()}-${Math.floor(1000 + Math.random() * 9000)}.${cleanExt}`;
+
+    try {
+      const { data, error } = await supabase.storage
+        .from('images')
+        .createSignedUploadUrl(filePath);
+
+      if (error) {
+        return reply.status(500).send({ success: false, message: error.message });
+      }
+
+      const { data: publicUrlData } = supabase.storage
+        .from('images')
+        .getPublicUrl(filePath);
+
+      return reply.send({
+        success: true,
+        signedUrl: data.signedUrl,
+        token: data.token,
+        path: filePath,
+        publicUrl: publicUrlData.publicUrl,
+      });
+    } catch (err: any) {
+      return reply.status(500).send({
+        success: false,
+        message: err?.message || 'Failed to create signed upload URL',
+      });
+    }
+  });
 };

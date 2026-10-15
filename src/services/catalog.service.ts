@@ -108,6 +108,16 @@ export async function getProductById(id: string): Promise<Product | null> {
 
 export function invalidateCatalogCache(): void {
   catalogCache = null;
+  const feUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+  const secret = process.env.REVALIDATE_SECRET;
+  fetch(`${feUrl}/api/revalidate`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...(secret ? { Authorization: `Bearer ${secret}` } : {}),
+    },
+    body: JSON.stringify({ tag: 'products' }),
+  }).catch(() => {});
 }
 
 export async function getCuratedCategories(): Promise<any[]> {
