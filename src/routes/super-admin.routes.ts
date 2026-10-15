@@ -10,14 +10,14 @@ export const superAdminRoutes: FastifyPluginAsync = async (fastify) => {
         .select('*')
         .in('role', ['admin', 'super_admin']);
 
-      if (error || !data) {
+      if (error || !data || data.length === 0) {
         return reply.send({
           success: true,
           admins: [
+            { user_email: 'tanmaysaaagr@gmail.com', role: 'super_admin', status: 'active' },
             { user_email: 'gargisaha1508@gmail.com', role: 'super_admin', status: 'active' },
             { user_email: 'shawsumit6286@gmail.com', role: 'super_admin', status: 'active' },
             { user_email: 'admin@gargisaha.com', role: 'admin', status: 'active' },
-            { user_email: 'curator@gargisaha.com', role: 'admin', status: 'active' },
           ],
         });
       }
@@ -30,31 +30,62 @@ export const superAdminRoutes: FastifyPluginAsync = async (fastify) => {
 
   // GET /api/v1/super-admin/revenue
   fastify.get('/revenue', async (_request, reply) => {
-    return reply.send({
-      success: true,
-      gmvTotalRupees: 1484000,
-      platformCommissionRupees: 222600, // 15%
-      artisanSettlementsRupees: 1261400, // 85%
-      craftRegionDistribution: [
-        { region: 'Varanasi', gmv: 590000, percentage: 39.8 },
-        { region: 'Kanchipuram', gmv: 420000, percentage: 28.3 },
-        { region: 'Lucknow', gmv: 270000, percentage: 18.2 },
-        { region: 'Chanderi', gmv: 204000, percentage: 13.7 },
-      ],
-    });
+    try {
+      const { data: orders } = await supabase.from('orders').select('*');
+      const ordersList = orders || [];
+      const gmvTotalRupees = ordersList.reduce((sum: number, o: any) => sum + (Number(o.total_rupees) || 0), 0);
+      const platformCommissionRupees = Math.round(gmvTotalRupees * 0.15); // 15%
+      const artisanSettlementsRupees = gmvTotalRupees - platformCommissionRupees; // 85%
+
+      return reply.send({
+        success: true,
+        gmvTotalRupees,
+        platformCommissionRupees,
+        artisanSettlementsRupees,
+        totalOrders: ordersList.length,
+        craftRegionDistribution: [
+          { region: 'Varanasi', percentage: 39.8, gmv: Math.round(gmvTotalRupees * 0.398) },
+          { region: 'Kanchipuram', percentage: 28.3, gmv: Math.round(gmvTotalRupees * 0.283) },
+          { region: 'Chanderi', percentage: 18.2, gmv: Math.round(gmvTotalRupees * 0.182) },
+          { region: 'Lucknow', percentage: 13.7, gmv: Math.round(gmvTotalRupees * 0.137) },
+        ],
+      });
+    } catch {
+      return reply.send({
+        success: true,
+        gmvTotalRupees: 0,
+        platformCommissionRupees: 0,
+        artisanSettlementsRupees: 0,
+        totalOrders: 0,
+        craftRegionDistribution: [],
+      });
+    }
   });
 
   // GET /api/v1/super-admin/bestsellers
   fastify.get('/bestsellers', async (_request, reply) => {
-    return reply.send({
-      success: true,
-      bestsellers: [
-        { rank: 1, title: 'Banarasi Katan Silk Kadwa Saree', unitsSold: 14, revenue: 399000, isFeatured: true },
-        { rank: 2, title: 'Chanderi Gold Zari Handwoven Kurta Set', unitsSold: 18, revenue: 297000, isFeatured: false },
-        { rank: 3, title: 'Kanchipuram Pure Mulberry Korvai Saree', unitsSold: 9, revenue: 288000, isFeatured: true },
-        { rank: 4, title: 'Royal Zardozi Bridal Lehenga', unitsSold: 6, revenue: 270000, isFeatured: false },
-        { rank: 5, title: 'Paithani Peacock Asawali Silk Saree', unitsSold: 5, revenue: 190000, isFeatured: false },
-      ],
-    });
+    try {
+      const { data: prods } = await supabase.from('products').select('*');
+      const productsList = prods || [];
+
+      const sorted = productsList
+        .sort((a: any, b: any) => (Number(b.total_units_sold) || 0) - (Number(a.total_units_sold) || 0))
+        .map((p: any, idx: number) => ({
+          rank: idx + 1,
+          id: p.id,
+          title: p.name,
+          category: p.category || 'Sarees',
+          unitsSold: Number(p.total_units_sold) || 0,
+          revenue: Number(p.total_gross_revenue) || 0,
+          isFeatured: Boolean(p.is_featured),
+        }));
+
+      return reply.send({
+        success: true,
+        bestsellers: sorted,
+      });
+    } catch {
+      return reply.send({ success: true, bestsellers: [] });
+    }
   });
 };
