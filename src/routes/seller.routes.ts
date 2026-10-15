@@ -3,6 +3,9 @@ import { Type } from '@sinclair/typebox';
 import { products } from '../db/catalog.js';
 
 export const sellerRoutes: FastifyPluginAsync = async (fastify) => {
+  // Enforce artisan, admin, or super_admin role on artisan routes
+  fastify.addHook('preHandler', fastify.requireRole('artisan', 'admin', 'super_admin'));
+
   // GET /api/v1/seller/analytics
   fastify.get(
     '/analytics',

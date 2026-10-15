@@ -2,6 +2,9 @@ import { FastifyPluginAsync } from 'fastify';
 import { supabase } from '../db/supabase.js';
 
 export const superAdminRoutes: FastifyPluginAsync = async (fastify) => {
+  // Enforce super_admin role strictly on all super-admin endpoints
+  fastify.addHook('preHandler', fastify.requireRole('super_admin'));
+
   // GET /api/v1/super-admin/admins
   fastify.get('/admins', async (_request, reply) => {
     try {

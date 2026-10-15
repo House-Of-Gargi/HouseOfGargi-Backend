@@ -2,6 +2,9 @@ import { FastifyPluginAsync } from 'fastify';
 import { supabase } from '../db/supabase.js';
 
 export const adminRoutes: FastifyPluginAsync = async (fastify) => {
+  // Enforce admin or super_admin role on all admin routes
+  fastify.addHook('preHandler', fastify.requireRole('admin', 'super_admin'));
+
   // GET /api/v1/admin/applications (Artisan Questionnaires)
   fastify.get('/applications', async (request, reply) => {
     try {
