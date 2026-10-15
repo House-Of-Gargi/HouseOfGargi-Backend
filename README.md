@@ -182,10 +182,13 @@ AUTH_SECRET="your-256-bit-auth-secret"
 ### Essential CLI Commands
 ```bash
 # Install all dependencies including dev tools
-npm install --include=dev
+npm install
 
 # Start hot-reloading development server
 npm run dev
+
+# Run automated Fastify test suite
+npm test
 
 # Run strict TypeScript typecheck
 npm run typecheck
@@ -205,7 +208,20 @@ All database schema versions are tracked in the [`/migrations`](./migrations) di
 - `0001_initial_schema.sql`: Core products and orders tables.
 - `0002_seed_initial_data.sql`: Vedic luxury saree and lehenga catalog.
 - `0003_enable_rls_security_policies.sql`: Row-Level Security (RLS) enforcement and role policies.
-- `supabase_schema.sql`: Consolidated baseline setup.
+- `0004_fix_products_id_column.sql`: Slug and UUID column harmonization.
+- `0005_fix_product_id_type.sql`: Product primary key stabilization.
+- `0006_categories_table.sql`: Storefront active category taxonomy.
+- `0007_artisan_profiles.sql`: Artisan profiles and applications tables.
+- `0008_seller_applications.sql`: Public artisan intake questionnaire schema.
+- `0009_audit_logs.sql`: Security audit trail for administrative mutations.
+- `0010_dynamic_categories_and_bestsellers.sql`: Real sales counts and category display orders.
+- `0011_customer_addresses.sql`: Customer address book storage.
+- `0012_bespoke_requests.sql`: Custom atelier commission tracking.
+- `0013_user_roles.sql`: Centralized role registry.
+- `0014_tighten_rls_policies.sql`: RLS hardening sealing PII tables from anonymous reads.
+- `0015_clean_categories_and_roles.sql`: Category streamlining and single source of truth user roles.
+- `0016_products_lifecycle_columns.sql`: Product lifecycle columns (`stock`, `is_hidden`, `deleted_at`, `curation_rank`, `product_number`).
+- `0017_otp_hardening.sql`: Single-use OTP token registry (`otp_used_tokens`) preventing replay attacks.
 
 ---
 

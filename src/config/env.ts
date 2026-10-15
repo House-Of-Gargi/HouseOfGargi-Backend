@@ -19,6 +19,7 @@ const EnvSchema = Type.Object({
   RESEND_API_KEY: Type.Optional(Type.String()),
   NOREPLY_EMAIL: Type.String({ default: 'noreply@gargisaha.com' }),
   COOKIE_DOMAIN: Type.Optional(Type.String()),
+  REVALIDATE_SECRET: Type.Optional(Type.String()),
 });
 
 export type Env = Static<typeof EnvSchema>;
