@@ -1,31 +1,5 @@
 import { FastifyPluginAsync } from 'fastify';
 import { supabase } from '../db/supabase.js';
-import fs from 'fs';
-import path from 'path';
-
-const BACKUP_DATA_FILE = path.join(process.cwd(), 'src', 'db', 'bespoke_commissions.json');
-
-function saveToBackup(data: any) {
-  try {
-    let list: any[] = [];
-    if (fs.existsSync(BACKUP_DATA_FILE)) {
-      list = JSON.parse(fs.readFileSync(BACKUP_DATA_FILE, 'utf8'));
-    }
-    list.unshift(data);
-    fs.writeFileSync(BACKUP_DATA_FILE, JSON.stringify(list, null, 2), 'utf8');
-  } catch (err) {
-    console.warn('Backup write error:', err);
-  }
-}
-
-function getFromBackup(): any[] {
-  try {
-    if (fs.existsSync(BACKUP_DATA_FILE)) {
-      return JSON.parse(fs.readFileSync(BACKUP_DATA_FILE, 'utf8'));
-    }
-  } catch {}
-  return [];
-}
 
 export const bespokeRoutes: FastifyPluginAsync = async (fastify) => {
   // POST /api/v1/bespoke - Submit custom commission
@@ -66,7 +40,6 @@ export const bespokeRoutes: FastifyPluginAsync = async (fastify) => {
       updated_at: new Date().toISOString(),
     };
 
-    // Try Supabase first
     try {
       const { data, error } = await supabase
         .from('bespoke_requests')
@@ -74,25 +47,18 @@ export const bespokeRoutes: FastifyPluginAsync = async (fastify) => {
         .select()
         .single();
 
-      if (!error && data) {
-        saveToBackup(data);
-        return reply.status(201).send({
-          success: true,
-          requestNumber: data.request_number,
-          commission: data,
-        });
+      if (error) {
+        return reply.status(400).send({ success: false, message: error.message });
       }
-    } catch (dbErr) {
-      console.warn('Supabase insert failed, using fallback:', dbErr);
-    }
 
-    // Local fallback persistence
-    saveToBackup(newRecord);
-    return reply.status(201).send({
-      success: true,
-      requestNumber,
-      commission: newRecord,
-    });
+      return reply.status(201).send({
+        success: true,
+        requestNumber: data.request_number,
+        commission: data,
+      });
+    } catch (dbErr: any) {
+      return reply.status(500).send({ success: false, message: dbErr?.message || 'Failed to submit bespoke commission' });
+    }
   });
 
   // GET /api/v1/bespoke - List commissions
@@ -103,13 +69,14 @@ export const bespokeRoutes: FastifyPluginAsync = async (fastify) => {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (!error && data && data.length > 0) {
-        return reply.send({ success: true, count: data.length, commissions: data });
+      if (error) {
+        return reply.status(500).send({ success: false, message: error.message });
       }
-    } catch {}
 
-    const backup = getFromBackup();
-    return reply.send({ success: true, count: backup.length, commissions: backup });
+      return reply.send({ success: true, count: data?.length || 0, commissions: data || [] });
+    } catch (err: any) {
+      return reply.status(500).send({ success: false, message: err?.message || 'Failed to fetch commissions' });
+    }
   });
 
   // PATCH /api/v1/bespoke/:id/status - Admin status update

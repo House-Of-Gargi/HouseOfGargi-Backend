@@ -12,6 +12,7 @@ import { getBackendUserRole } from '../services/rbac.service.js';
 
 const SendOtpBody = Type.Object({
   email: Type.String({ format: 'email' }),
+  portal: Type.Optional(Type.String()),
 });
 type SendOtpBodyType = Static<typeof SendOtpBody>;
 
@@ -20,6 +21,7 @@ const VerifyOtpBody = Type.Object({
   otp: Type.String({ minLength: 6, maxLength: 6 }),
   token: Type.String(),
   expiresAt: Type.Number(),
+  portal: Type.Optional(Type.String()),
 });
 type VerifyOtpBodyType = Static<typeof VerifyOtpBody>;
 
@@ -41,8 +43,18 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request, reply) => {
-      const { email } = request.body;
+      const { email, portal } = request.body;
       const cleanEmail = email.toLowerCase().trim();
+
+      if (portal === 'admin') {
+        const role = await getBackendUserRole(cleanEmail);
+        if (role !== 'admin' && role !== 'super_admin') {
+          return reply.status(403).send({
+            success: false,
+            message: 'Access restricted. This email is not registered as an Admin or Super Admin with House of Gargi.',
+          });
+        }
+      }
 
       const otp = generateOtp();
       const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
