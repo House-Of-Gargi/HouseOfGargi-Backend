@@ -1,13 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 import WebSocket from 'ws';
-import dotenv from 'dotenv';
+import { env } from '../config/env.js';
 
-dotenv.config();
-
-const supabaseUrl = process.env.SUPABASE_URL || 'https://wlivgkosmbfgjtecvznj.supabase.co';
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || '';
-
-export const supabase = createClient(supabaseUrl, supabaseKey, {
+export const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
   auth: {
     persistSession: false,
     autoRefreshToken: false,
