@@ -6,7 +6,10 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const AUTH_SECRET = process.env.AUTH_SECRET || 'house_of_gargi_vedic_auth_secret_2026';
+const AUTH_SECRET = process.env.AUTH_SECRET || (process.env.NODE_ENV !== 'production' ? 'house_of_gargi_dev_auth_secret_only' : '');
+if (process.env.NODE_ENV === 'production' && !AUTH_SECRET) {
+  throw new Error('[FATAL] Missing required AUTH_SECRET in production environment.');
+}
 const resendApiKey = process.env.RESEND_API_KEY || '';
 const NOREPLY_EMAIL = process.env.NOREPLY_EMAIL || 'noreply@gargisaha.com';
 

@@ -93,7 +93,10 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   // 5. JWT Plugin
-  const jwtSecret = process.env.JWT_SECRET || 'house_of_gargi_vedic_auth_secret_2026';
+  const jwtSecret = process.env.JWT_SECRET || (process.env.NODE_ENV !== 'production' ? 'house_of_gargi_dev_jwt_secret_only' : '');
+  if (process.env.NODE_ENV === 'production' && !jwtSecret) {
+    throw new Error('[FATAL] Missing required JWT_SECRET in production environment.');
+  }
   await fastify.register(jwt, {
     secret: jwtSecret,
   });
@@ -101,36 +104,38 @@ export async function buildApp(): Promise<FastifyInstance> {
   // 6. WebSockets Plugin
   await fastify.register(websocket);
 
-  // 7. Swagger / OpenAPI Documentation
-  await fastify.register(swagger, {
-    openapi: {
-      info: {
-        title: 'House of Gargi Atelier API',
-        description: 'High-throughput enterprise API gateway for House of Gargi luxury fashion',
-        version: '1.0.0',
-      },
-      servers: [
-        {
-          url: 'http://localhost:5000',
-          description: 'Local development server',
+  // 7. Swagger / OpenAPI Documentation (Restricted to non-production environments)
+  if (process.env.NODE_ENV !== 'production') {
+    await fastify.register(swagger, {
+      openapi: {
+        info: {
+          title: 'House of Gargi Atelier API',
+          description: 'High-throughput enterprise API gateway for House of Gargi luxury fashion',
+          version: '1.0.0',
         },
-      ],
-      tags: [
-        { name: 'Authentication', description: 'Patron OTP and JWT session management' },
-        { name: 'Catalog', description: 'Handcrafted products, categories, and inventory' },
-        { name: 'Checkout & Orders', description: 'Cart checkout sessions and order placement' },
-        { name: 'Seller Atelier', description: 'Vendor management, analytics, and telemetry' },
-      ],
-    },
-  });
+        servers: [
+          {
+            url: 'http://localhost:5000',
+            description: 'Local development server',
+          },
+        ],
+        tags: [
+          { name: 'Authentication', description: 'Patron OTP and JWT session management' },
+          { name: 'Catalog', description: 'Handcrafted products, categories, and inventory' },
+          { name: 'Checkout & Orders', description: 'Cart checkout sessions and order placement' },
+          { name: 'Seller Atelier', description: 'Vendor management, analytics, and telemetry' },
+        ],
+      },
+    });
 
-  await fastify.register(swaggerUi, {
-    routePrefix: '/documentation',
-    uiConfig: {
-      docExpansion: 'list',
-      deepLinking: true,
-    },
-  });
+    await fastify.register(swaggerUi, {
+      routePrefix: '/documentation',
+      uiConfig: {
+        docExpansion: 'list',
+        deepLinking: true,
+      },
+    });
+  }
 
   // 8. Base Directives & Health
   fastify.get('/robots.txt', async (_req, reply) => {
@@ -206,6 +211,18 @@ export async function buildApp(): Promise<FastifyInstance> {
     socket.on('message', (data: Buffer | string) => {
       try {
         const parsed = JSON.parse(data.toString());
+        // Verify session authorization before relaying updates
+        if (!parsed.token) {
+          socket.send(JSON.stringify({ error: 'Unauthorized: missing authentication token' }));
+          return;
+        }
+        try {
+          fastify.jwt.verify(parsed.token);
+        } catch {
+          socket.send(JSON.stringify({ error: 'Unauthorized: invalid or expired session token' }));
+          return;
+        }
+
         // Echo delta to active client tabs
         fastify.websocketServer.clients.forEach((client) => {
           if (client !== socket && client.readyState === 1) {

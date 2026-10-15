@@ -66,9 +66,10 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       const { email, otp, token, expiresAt } = request.body;
       const cleanEmail = email.toLowerCase().trim();
 
-      const isValid = verifyHmacToken(cleanEmail, otp.trim(), expiresAt, token);
+      const allowTestOtp = process.env.NODE_ENV !== 'production' && process.env.ALLOW_TEST_OTP === 'true';
+      const isTestMatch = Boolean(allowTestOtp && process.env.TEST_OTP_CODE && otp.trim() === process.env.TEST_OTP_CODE);
 
-      if (!isValid && otp !== '123456') {
+      if (!isValid && !isTestMatch) {
         return reply.status(401).send({
           success: false,
           message: 'Invalid or expired access code. Please request a fresh transmission.',
