@@ -179,6 +179,35 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
     }
   );
 
+  // GET /api/v1/auth/role
+  fastify.get<{ Querystring: { email?: string } }>(
+    '/role',
+    {
+      schema: {
+        tags: ['Authentication'],
+        summary: 'Resolve authoritative user role from database',
+      },
+    },
+    async (request, reply) => {
+      const { email } = request.query;
+      if (!email) {
+        return reply.status(400).send({
+          success: false,
+          message: 'Email parameter is required',
+        });
+      }
+
+      const cleanEmail = email.toLowerCase().trim();
+      const resolvedRole = await getBackendUserRole(cleanEmail);
+
+      return reply.status(200).send({
+        success: true,
+        email: cleanEmail,
+        role: resolvedRole,
+      });
+    }
+  );
+
   // POST /api/v1/auth/logout
   fastify.post(
     '/logout',
