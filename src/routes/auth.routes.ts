@@ -47,9 +47,10 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       const { email, portal } = request.body;
       const cleanEmail = email.toLowerCase().trim();
 
+      const resolvedRole = await getBackendUserRole(cleanEmail);
+
       if (portal === 'admin') {
-        const role = await getBackendUserRole(cleanEmail);
-        if (role !== 'admin' && role !== 'super_admin') {
+        if (resolvedRole !== 'admin' && resolvedRole !== 'super_admin') {
           return reply.status(403).send({
             success: false,
             message: 'Access restricted. This email is not registered as an Admin or Super Admin with House of Gargi.',
@@ -61,7 +62,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
       const verificationToken = generateHmacToken(cleanEmail, otp, expiresAt);
 
-      const sent = await sendOtpEmail(cleanEmail, otp);
+      const sent = await sendOtpEmail(cleanEmail, otp, portal, resolvedRole);
 
       return reply.status(200).send({
         success: true,
