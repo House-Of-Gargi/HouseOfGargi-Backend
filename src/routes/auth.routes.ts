@@ -19,7 +19,8 @@ type SendOtpBodyType = Static<typeof SendOtpBody>;
 const VerifyOtpBody = Type.Object({
   email: Type.String({ format: 'email' }),
   otp: Type.String({ minLength: 6, maxLength: 6 }),
-  token: Type.String(),
+  token: Type.Optional(Type.String()),
+  verificationToken: Type.Optional(Type.String()),
   expiresAt: Type.Number(),
   portal: Type.Optional(Type.String()),
 });
@@ -66,6 +67,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
         success: true,
         message: sent ? 'Verification code dispatched to your email.' : 'Code generated (simulation mode active).',
         token: verificationToken,
+        verificationToken,
         expiresAt,
       });
     }
@@ -82,8 +84,16 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request, reply) => {
-      const { email, otp, token, expiresAt } = request.body;
+      const { email, otp, token: rawToken, verificationToken: rawVerifToken, expiresAt } = request.body;
       const cleanEmail = email.toLowerCase().trim();
+      const token = (rawToken || rawVerifToken || '').trim();
+
+      if (!token) {
+        return reply.status(401).send({
+          success: false,
+          message: 'Invalid or expired access code session. Please request a fresh transmission.',
+        });
+      }
 
       // 1. Single-use token validation (replay attack prevention)
       const alreadyUsed = await isTokenUsed(token);
