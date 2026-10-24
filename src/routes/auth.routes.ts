@@ -9,6 +9,8 @@ import {
   recordUsedToken,
 } from '../services/auth.service.js';
 import { getBackendUserRole } from '../services/rbac.service.js';
+import { verifyPassword } from '../services/password.service.js';
+import { supabase } from '../db/supabase.js';
 
 const SendOtpBody = Type.Object({
   email: Type.String({ format: 'email' }),
@@ -26,7 +28,97 @@ const VerifyOtpBody = Type.Object({
 });
 type VerifyOtpBodyType = Static<typeof VerifyOtpBody>;
 
+const AdminLoginBody = Type.Object({
+  email: Type.String({ format: 'email' }),
+  password: Type.String({ minLength: 1 }),
+});
+type AdminLoginBodyType = Static<typeof AdminLoginBody>;
+
 export const authRoutes: FastifyPluginAsync = async (fastify) => {
+  // POST /api/v1/auth/admin/login
+  fastify.post<{ Body: AdminLoginBodyType }>(
+    '/admin/login',
+    {
+      config: {
+        rateLimit: {
+          max: 5,
+          timeWindow: '5 minutes',
+        },
+      },
+      schema: {
+        tags: ['Authentication'],
+        summary: 'Authenticate administrative staff using email and password',
+        body: AdminLoginBody,
+      },
+    },
+    async (request, reply) => {
+      const { email, password } = request.body;
+      const cleanEmail = email.toLowerCase().trim();
+
+      // 1. Authoritative role resolution
+      const resolvedRole = await getBackendUserRole(cleanEmail);
+
+      if (resolvedRole !== 'admin' && resolvedRole !== 'super_admin') {
+        return reply.status(403).send({
+          success: false,
+          message: 'Access restricted. This email is not registered as an Admin or Super Admin with House of Gargi.',
+        });
+      }
+
+      // 2. Query user_roles for stored password_hash
+      let storedHash: string | null = null;
+      try {
+        const { data, error } = await supabase
+          .from('user_roles')
+          .select('password_hash')
+          .eq('user_email', cleanEmail)
+          .maybeSingle();
+
+        if (!error && data) {
+          storedHash = data.password_hash;
+        }
+      } catch (dbErr) {
+        request.log.warn({ err: dbErr }, 'Error querying password_hash from user_roles');
+      }
+
+      // 3. Verify password against bcrypt hash or fallback default (12345678)
+      const isPasswordValid = await verifyPassword(password, storedHash);
+      if (!isPasswordValid) {
+        return reply.status(401).send({
+          success: false,
+          message: 'Invalid administrative email or password. Please verify your credentials.',
+        });
+      }
+
+      // 4. Issue JWT token
+      const jwtToken = fastify.jwt.sign(
+        { email: cleanEmail, role: resolvedRole },
+        { expiresIn: '30d' }
+      );
+
+      // 5. Set httpOnly signed session cookie
+      reply.setCookie('hog_session', jwtToken, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+        path: '/',
+        domain: process.env.COOKIE_DOMAIN || undefined,
+        maxAge: 60 * 60 * 24 * 30, // 30 days
+      });
+
+      return reply.status(200).send({
+        success: true,
+        message: 'Administrative authentication successful.',
+        token: jwtToken,
+        user: {
+          email: cleanEmail,
+          role: resolvedRole,
+          authenticatedAt: new Date().toISOString(),
+        },
+      });
+    }
+  );
+
   // POST /api/v1/auth/otp/send
   fastify.post<{ Body: SendOtpBodyType }>(
     '/otp/send',

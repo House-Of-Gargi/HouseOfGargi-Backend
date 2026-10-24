@@ -1,6 +1,7 @@
 import { FastifyPluginAsync } from 'fastify';
 import { supabase } from '../db/supabase.js';
 import { recordAuditLog } from '../lib/audit.js';
+import { hashPassword, verifyPassword, getDefaultPasswordHash } from '../services/password.service.js';
 
 export const superAdminRoutes: FastifyPluginAsync = async (fastify) => {
   // Enforce super_admin role strictly on all super-admin endpoints
@@ -88,17 +89,34 @@ export const superAdminRoutes: FastifyPluginAsync = async (fastify) => {
 
       const cleanEmail = email.toLowerCase().trim();
       const validRole = role === 'super_admin' ? 'super_admin' : 'admin';
+      const defaultPasswordHash = await getDefaultPasswordHash();
 
-      const { data, error } = await supabase
+      // Upsert into user_roles with default password hash (12345678)
+      let upsertPayload: Record<string, any> = {
+        user_email: cleanEmail,
+        role: validRole,
+        assigned_by: (request.user as any)?.email || 'super_admin_console',
+        updated_at: new Date().toISOString(),
+        password_hash: defaultPasswordHash,
+      };
+
+      let { data, error } = await supabase
         .from('user_roles')
-        .upsert({
-          user_email: cleanEmail,
-          role: validRole,
-          assigned_by: (request.user as any)?.email || 'super_admin_console',
-          updated_at: new Date().toISOString(),
-        })
+        .upsert(upsertPayload)
         .select()
         .single();
+
+      // Graceful fallback if migration 0018 has not yet been applied to Supabase
+      if (error && error.code === '42703') {
+        delete upsertPayload.password_hash;
+        const retryResult = await supabase
+          .from('user_roles')
+          .upsert(upsertPayload)
+          .select()
+          .single();
+        data = retryResult.data;
+        error = retryResult.error;
+      }
 
       if (error) {
         return reply.status(500).send({ success: false, message: error.message });
@@ -107,6 +125,138 @@ export const superAdminRoutes: FastifyPluginAsync = async (fastify) => {
       await recordAuditLog(request, 'ASSIGN_ADMIN_ROLE', cleanEmail, { role: validRole });
 
       return reply.send({ success: true, message: `Role ${validRole} assigned to ${cleanEmail}`, admin: data });
+    }
+  );
+
+  // POST /api/v1/super-admin/admins/:email/reset-password
+  fastify.post<{ Params: { email: string }; Body: { newPassword?: string } }>(
+    '/admins/:email/reset-password',
+    async (request, reply) => {
+      const { email } = request.params;
+      const { newPassword } = request.body || {};
+      const cleanEmail = email.toLowerCase().trim();
+
+      const passwordToSet = (newPassword && newPassword.trim().length > 0)
+        ? newPassword.trim()
+        : '12345678';
+
+      if (passwordToSet.length < 6) {
+        return reply.status(400).send({
+          success: false,
+          message: 'Password must be at least 6 characters in length.',
+        });
+      }
+
+      const newHash = await hashPassword(passwordToSet);
+
+      const { data: existingAdmin, error: findError } = await supabase
+        .from('user_roles')
+        .select('*')
+        .eq('user_email', cleanEmail)
+        .maybeSingle();
+
+      if (findError) {
+        return reply.status(500).send({ success: false, message: findError.message });
+      }
+
+      if (!existingAdmin) {
+        return reply.status(404).send({
+          success: false,
+          message: `Administrator account '${cleanEmail}' not found.`,
+        });
+      }
+
+      const { error: updateError } = await supabase
+        .from('user_roles')
+        .update({
+          password_hash: newHash,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_email', cleanEmail);
+
+      if (updateError) {
+        return reply.status(500).send({
+          success: false,
+          message: updateError.message || 'Failed to update administrator password',
+        });
+      }
+
+      await recordAuditLog(request, 'RESET_ADMIN_PASSWORD', cleanEmail, {
+        resetBy: (request.user as any)?.email,
+        isDefault: passwordToSet === '12345678',
+      });
+
+      return reply.send({
+        success: true,
+        message: `Password for ${cleanEmail} has been successfully reset.`,
+      });
+    }
+  );
+
+  // POST /api/v1/super-admin/change-password (Self password change for Super Admin)
+  fastify.post<{ Body: { currentPassword: string; newPassword: string } }>(
+    '/change-password',
+    async (request, reply) => {
+      const { currentPassword, newPassword } = request.body || {};
+      const callerEmail = (request.user as any)?.email?.toLowerCase().trim();
+
+      if (!callerEmail) {
+        return reply.status(401).send({ success: false, message: 'Unauthenticated session.' });
+      }
+
+      if (!currentPassword || !newPassword) {
+        return reply.status(400).send({
+          success: false,
+          message: 'Both current password and new password are required.',
+        });
+      }
+
+      if (newPassword.trim().length < 6) {
+        return reply.status(400).send({
+          success: false,
+          message: 'New password must be at least 6 characters in length.',
+        });
+      }
+
+      // Fetch caller's current password hash
+      const { data: roleRecord, error: fetchErr } = await supabase
+        .from('user_roles')
+        .select('password_hash')
+        .eq('user_email', callerEmail)
+        .maybeSingle();
+
+      if (fetchErr) {
+        return reply.status(500).send({ success: false, message: fetchErr.message });
+      }
+
+      // Verify current password against hash or default 12345678
+      const isCurrentValid = await verifyPassword(currentPassword, roleRecord?.password_hash);
+      if (!isCurrentValid) {
+        return reply.status(400).send({
+          success: false,
+          message: 'Current password verification failed. Please check your current password.',
+        });
+      }
+
+      const newHash = await hashPassword(newPassword.trim());
+      const { error: updateErr } = await supabase
+        .from('user_roles')
+        .update({
+          password_hash: newHash,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('user_email', callerEmail);
+
+      if (updateErr) {
+        return reply.status(500).send({ success: false, message: updateErr.message });
+      }
+
+      await recordAuditLog(request, 'CHANGE_OWN_PASSWORD', callerEmail);
+
+      return reply.send({
+        success: true,
+        message: 'Your Super Admin password has been updated successfully.',
+      });
     }
   );
 
