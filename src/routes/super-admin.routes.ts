@@ -175,6 +175,12 @@ export const superAdminRoutes: FastifyPluginAsync = async (fastify) => {
         .eq('user_email', cleanEmail);
 
       if (updateError) {
+        if (updateError.code === '42703') {
+          return reply.status(400).send({
+            success: false,
+            message: 'Database column pending: Please run migration 0018_admin_password_auth.sql in Supabase SQL Editor.',
+          });
+        }
         return reply.status(500).send({
           success: false,
           message: updateError.message || 'Failed to update administrator password',
@@ -225,7 +231,7 @@ export const superAdminRoutes: FastifyPluginAsync = async (fastify) => {
         .eq('user_email', callerEmail)
         .maybeSingle();
 
-      if (fetchErr) {
+      if (fetchErr && fetchErr.code !== '42703') {
         return reply.status(500).send({ success: false, message: fetchErr.message });
       }
 
@@ -248,6 +254,12 @@ export const superAdminRoutes: FastifyPluginAsync = async (fastify) => {
         .eq('user_email', callerEmail);
 
       if (updateErr) {
+        if (updateErr.code === '42703') {
+          return reply.status(400).send({
+            success: false,
+            message: 'Database column pending: Please run migration 0018_admin_password_auth.sql in Supabase SQL Editor.',
+          });
+        }
         return reply.status(500).send({ success: false, message: updateErr.message });
       }
 

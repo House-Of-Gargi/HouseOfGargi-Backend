@@ -9,7 +9,8 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "typecheck": "tsc --noEmit",
-    "test": "tsx --test test/api.test.ts"
+    "test": "tsx --test test/api.test.ts",
+    "graphify": "node scripts/generate-graphify.cjs"
   },
   "dependencies": {
     "@fastify/cookie": "^11.1.3",

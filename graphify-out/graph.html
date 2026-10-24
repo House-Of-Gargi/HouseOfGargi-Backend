@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>House of Gargi Backend — Graphify System Map</title>
+  <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0F172A; color: #E2E8F0; display: flex; height: 100vh; overflow: hidden; }
+    #sidebar { width: 340px; background: #1E293B; border-right: 1px solid #334155; display: flex; flex-direction: column; z-index: 10; }
+    #header { padding: 16px 20px; border-bottom: 1px solid #334155; }
+    #header h1 { font-size: 17px; font-weight: 700; color: #F8FAFC; margin-bottom: 4px; }
+    #header p { font-size: 12px; color: #94A3B8; }
+    #controls { padding: 12px 20px; border-bottom: 1px solid #334155; display: flex; flex-direction: column; gap: 10px; }
+    #search { width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #475569; background: #0F172A; color: #F8FAFC; font-size: 13px; outline: none; }
+    #search:focus { border-color: #38BDF8; }
+    #community-filter { width: 100%; padding: 8px 12px; border-radius: 6px; border: 1px solid #475569; background: #0F172A; color: #F8FAFC; font-size: 13px; outline: none; }
+    #sidebar-content { flex: 1; overflow-y: auto; padding: 20px; }
+    .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; text-transform: uppercase; margin-bottom: 8px; }
+    .node-title { font-size: 18px; font-weight: 700; color: #F8FAFC; margin-bottom: 4px; word-break: break-all; }
+    .node-path { font-size: 11px; color: #94A3B8; font-family: monospace; margin-bottom: 12px; word-break: break-all; }
+    .node-desc { font-size: 13px; color: #CBD5E1; line-height: 1.5; margin-bottom: 16px; background: #0F172A; padding: 10px; border-radius: 6px; border: 1px solid #334155; }
+    .meta-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+    .meta-box { background: #0F172A; padding: 8px 12px; border-radius: 6px; border: 1px solid #334155; }
+    .meta-box span { font-size: 10px; text-transform: uppercase; color: #64748B; font-weight: 700; display: block; }
+    .meta-box strong { font-size: 15px; color: #F8FAFC; }
+    .section-head { font-size: 12px; font-weight: 700; text-transform: uppercase; color: #94A3B8; margin: 16px 0 8px 0; }
+    .link-pill { display: block; padding: 6px 10px; background: #0F172A; border: 1px solid #334155; border-radius: 4px; font-size: 12px; color: #38BDF8; text-decoration: none; margin-bottom: 6px; cursor: pointer; word-break: break-all; }
+    .link-pill:hover { background: #1E293B; border-color: #38BDF8; }
+    #network-container { flex: 1; height: 100%; position: relative; }
+    #network { width: 100%; height: 100%; }
+    .legend { position: absolute; bottom: 20px; right: 20px; background: rgba(30, 41, 59, 0.9); backdrop-filter: blur(8px); border: 1px solid #334155; border-radius: 8px; padding: 12px 16px; max-width: 280px; z-index: 5; }
+    .legend-title { font-size: 11px; font-weight: 700; text-transform: uppercase; color: #94A3B8; margin-bottom: 8px; }
+    .legend-item { display: flex; alignItems: center; gap: 8px; font-size: 11px; margin-bottom: 4px; color: #E2E8F0; }
+    .legend-color { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+    .btn-reset { padding: 6px 12px; border-radius: 4px; background: #334155; border: none; color: #F8FAFC; font-size: 12px; cursor: pointer; }
+    .btn-reset:hover { background: #475569; }
+  </style>
+</head>
+<body>
+  <div id="sidebar">
+    <div id="header">
+      <h1>House of Gargi Backend</h1>
+      <p>Fastify Enterprise API Gateway • Graphify Topology</p>
+    </div>
+    <div id="controls">
+      <input type="text" id="search" placeholder="Search module, route, or file..." />
+      <select id="community-filter">
+        <option value="all">All Tiers (45 Modules)</option>
+        <option value="Configuration & Manifests">Configuration & Manifests (4)</option><option value="Supabase PostgreSQL Migrations">Supabase PostgreSQL Migrations (19)</option><option value="Automation Scripts">Automation Scripts (1)</option><option value="Gateway Core & Server Lifecycle">Gateway Core & Server Lifecycle (2)</option><option value="Configuration & Env Validation">Configuration & Env Validation (1)</option><option value="Database & Realtime Connectors">Database & Realtime Connectors (2)</option><option value="Infrastructure & Telemetry">Infrastructure & Telemetry (2)</option><option value="Security & Auth Guards">Security & Auth Guards (1)</option><option value="Fastify API Routes">Fastify API Routes (8)</option><option value="Domain Business Services">Domain Business Services (4)</option><option value="Test Suites & Verification">Test Suites & Verification (1)</option>
+      </select>
+      <button class="btn-reset" id="reset-zoom">Reset Viewport & Zoom</button>
+    </div>
+    <div id="sidebar-content">
+      <p style="color: #94A3B8; font-size: 13px;">Click on any module or cluster node to inspect imports, routes, and connections.</p>
+    </div>
+  </div>
+
+  <div id="network-container">
+    <div id="network"></div>
+    <div class="legend">
+      <div class="legend-title">Architectural Clusters</div>
+      
+        <div class="legend-item">
+          <div class="legend-color" style="background:#94A3B8"></div>
+          <span>Configuration & Manifests</span>
+        </div>
+      
+        <div class="legend-item">
+          <div class="legend-color" style="background:#D97706"></div>
+          <span>Supabase PostgreSQL Migrations</span>
+        </div>
+      
+        <div class="legend-item">
+          <div class="legend-color" style="background:#0891B2"></div>
+          <span>Automation Scripts</span>
+        </div>
+      
+        <div class="legend-item">
+          <div class="legend-color" style="background:#7A2331"></div>
+          <span>Gateway Core & Server Lifecycle</span>
+        </div>
+      
+        <div class="legend-item">
+          <div class="legend-color" style="background:#64748B"></div>
+          <span>Configuration & Env Validation</span>
+        </div>
+      
+        <div class="legend-item">
+          <div class="legend-color" style="background:#0284C7"></div>
+          <span>Database & Realtime Connectors</span>
+        </div>
+      
+        <div class="legend-item">
+          <div class="legend-color" style="background:#7C3AED"></div>
+          <span>Infrastructure & Telemetry</span>
+        </div>
+      
+        <div class="legend-item">
+          <div class="legend-color" style="background:#DC2626"></div>
+          <span>Security & Auth Guards</span>
+        </div>
+      
+        <div class="legend-item">
+          <div class="legend-color" style="background:#C27803"></div>
+          <span>Fastify API Routes</span>
+        </div>
+      
+        <div class="legend-item">
+          <div class="legend-color" style="background:#059669"></div>
+          <span>Domain Business Services</span>
+        </div>
+      
+        <div class="legend-item">
+          <div class="legend-color" style="background:#475569"></div>
+          <span>Test Suites & Verification</span>
+        </div>
+      
+    </div>
+  </div>
+
+  <script>
+    const graphData = {"project":"House of Gargi - Backend Atelier API Gateway","version":"1.0.0","generatedAt":"2026-10-24T14:10:43.485Z","metrics":{"totalFiles":45,"totalDependencies":36,"communitiesCount":11},"communities":{"Configuration & Manifests":{"name":"Configuration & Manifests","color":"#94A3B8","count":4},"Supabase PostgreSQL Migrations":{"name":"Supabase PostgreSQL Migrations","color":"#D97706","count":19},"Automation Scripts":{"name":"Automation Scripts","color":"#0891B2","count":1},"Gateway Core & Server Lifecycle":{"name":"Gateway Core & Server Lifecycle","color":"#7A2331","count":2},"Configuration & Env Validation":{"name":"Configuration & Env Validation","color":"#64748B","count":1},"Database & Realtime Connectors":{"name":"Database & Realtime Connectors","color":"#0284C7","count":2},"Infrastructure & Telemetry":{"name":"Infrastructure & Telemetry","color":"#7C3AED","count":2},"Security & Auth Guards":{"name":"Security & Auth Guards","color":"#DC2626","count":1},"Fastify API Routes":{"name":"Fastify API Routes","color":"#C27803","count":8},"Domain Business Services":{"name":"Domain Business Services","color":"#059669","count":4},"Test Suites & Verification":{"name":"Test Suites & Verification","color":"#475569","count":1}},"nodes":[{"id":".env","label":".env","path":".env","type":"module","community":"Configuration & Manifests","lines":20,"size":12,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module .env in Configuration & Manifests"},{"id":"migrations/0001_initial_schema.sql","label":"0001_initial_schema.sql","path":"migrations/0001_initial_schema.sql","type":"migration","community":"Supabase PostgreSQL Migrations","lines":50,"size":18,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module 0001_initial_schema.sql in Supabase PostgreSQL Migrations"},{"id":"migrations/0002_seed_initial_data.sql","label":"0002_seed_initial_data.sql","path":"migrations/0002_seed_initial_data.sql","type":"migration","community":"Supabase PostgreSQL Migrations","lines":36,"size":15,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module 0002_seed_initial_data.sql in Supabase PostgreSQL Migrations"},{"id":"migrations/0003_enable_rls_security_policies.sql","label":"0003_enable_rls_security_policies.sql","path":"migrations/0003_enable_rls_security_policies.sql","type":"migration","community":"Supabase PostgreSQL Migrations","lines":73,"size":21,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module 0003_enable_rls_security_policies.sql in Supabase PostgreSQL Migrations"},{"id":"migrations/0004_ecommerce_relational_schema.sql","label":"0004_ecommerce_relational_schema.sql","path":"migrations/0004_ecommerce_relational_schema.sql","type":"migration","community":"Supabase PostgreSQL Migrations","lines":148,"size":30,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module 0004_ecommerce_relational_schema.sql in Supabase PostgreSQL Migrations"},{"id":"migrations/0005_roles_and_permissions.sql","label":"0005_roles_and_permissions.sql","path":"migrations/0005_roles_and_permissions.sql","type":"migration","community":"Supabase PostgreSQL Migrations","lines":36,"size":15,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module 0005_roles_and_permissions.sql in Supabase PostgreSQL Migrations"},{"id":"migrations/0006_categories_and_collections.sql","label":"0006_categories_and_collections.sql","path":"migrations/0006_categories_and_collections.sql","type":"migration","community":"Supabase PostgreSQL Migrations","lines":36,"size":15,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module 0006_categories_and_collections.sql in Supabase PostgreSQL Migrations"},{"id":"migrations/0007_artisan_profiles_and_applications.sql","label":"0007_artisan_profiles_and_applications.sql","path":"migrations/0007_artisan_profiles_and_applications.sql","type":"migration","community":"Supabase PostgreSQL Migrations","lines":66,"size":20,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module 0007_artisan_profiles_and_applications.sql in Supabase PostgreSQL Migrations"},{"id":"migrations/0008_products_curation_and_inventory.sql","label":"0008_products_curation_and_inventory.sql","path":"migrations/0008_products_curation_and_inventory.sql","type":"migration","community":"Supabase PostgreSQL Migrations","lines":19,"size":12,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module 0008_products_curation_and_inventory.sql in Supabase PostgreSQL Migrations"},{"id":"migrations/0009_payouts_and_audit_logs.sql","label":"0009_payouts_and_audit_logs.sql","path":"migrations/0009_payouts_and_audit_logs.sql","type":"migration","community":"Supabase PostgreSQL Migrations","lines":43,"size":16,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module 0009_payouts_and_audit_logs.sql in Supabase PostgreSQL Migrations"},{"id":"migrations/0010_assign_super_admin_and_admin_roles.sql","label":"0010_assign_super_admin_and_admin_roles.sql","path":"migrations/0010_assign_super_admin_and_admin_roles.sql","type":"migration","community":"Supabase PostgreSQL Migrations","lines":17,"size":12,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module 0010_assign_super_admin_and_admin_roles.sql in Supabase PostgreSQL Migrations"},{"id":"migrations/0011_admin_super_admin_portal_rbac_enforcement.sql","label":"0011_admin_super_admin_portal_rbac_enforcement.sql","path":"migrations/0011_admin_super_admin_portal_rbac_enforcement.sql","type":"migration","community":"Supabase PostgreSQL Migrations","lines":36,"size":15,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module 0011_admin_super_admin_portal_rbac_enforcement.sql in Supabase PostgreSQL Migrations"},{"id":"migrations/0012_bespoke_commissions.sql","label":"0012_bespoke_commissions.sql","path":"migrations/0012_bespoke_commissions.sql","type":"migration","community":"Supabase PostgreSQL Migrations","lines":45,"size":17,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module 0012_bespoke_commissions.sql in Supabase PostgreSQL Migrations"},{"id":"migrations/0013_product_customer_details.sql","label":"0013_product_customer_details.sql","path":"migrations/0013_product_customer_details.sql","type":"migration","community":"Supabase PostgreSQL Migrations","lines":37,"size":15,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module 0013_product_customer_details.sql in Supabase PostgreSQL Migrations"},{"id":"migrations/0014_tighten_rls_policies.sql","label":"0014_tighten_rls_policies.sql","path":"migrations/0014_tighten_rls_policies.sql","type":"migration","community":"Supabase PostgreSQL Migrations","lines":38,"size":15,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module 0014_tighten_rls_policies.sql in Supabase PostgreSQL Migrations"},{"id":"migrations/0015_clean_categories_and_roles.sql","label":"0015_clean_categories_and_roles.sql","path":"migrations/0015_clean_categories_and_roles.sql","type":"migration","community":"Supabase PostgreSQL Migrations","lines":40,"size":16,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module 0015_clean_categories_and_roles.sql in Supabase PostgreSQL Migrations"},{"id":"migrations/0016_products_lifecycle_columns.sql","label":"0016_products_lifecycle_columns.sql","path":"migrations/0016_products_lifecycle_columns.sql","type":"migration","community":"Supabase PostgreSQL Migrations","lines":34,"size":15,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module 0016_products_lifecycle_columns.sql in Supabase PostgreSQL Migrations"},{"id":"migrations/0017_otp_hardening.sql","label":"0017_otp_hardening.sql","path":"migrations/0017_otp_hardening.sql","type":"migration","community":"Supabase PostgreSQL Migrations","lines":25,"size":13,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module 0017_otp_hardening.sql in Supabase PostgreSQL Migrations"},{"id":"migrations/0018_admin_password_auth.sql","label":"0018_admin_password_auth.sql","path":"migrations/0018_admin_password_auth.sql","type":"migration","community":"Supabase PostgreSQL Migrations","lines":21,"size":12,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"SQL migration adding password_hash column and seeding default passwords"},{"id":"migrations/supabase_schema.sql","label":"supabase_schema.sql","path":"migrations/supabase_schema.sql","type":"migration","community":"Supabase PostgreSQL Migrations","lines":59,"size":19,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module supabase_schema.sql in Supabase PostgreSQL Migrations"},{"id":"package-lock.json","label":"package-lock.json","path":"package-lock.json","type":"module","community":"Configuration & Manifests","lines":2206,"size":48,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module package-lock.json in Configuration & Manifests"},{"id":"package.json","label":"package.json","path":"package.json","type":"module","community":"Configuration & Manifests","lines":44,"size":17,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module package.json in Configuration & Manifests"},{"id":"scripts/generate-graphify.cjs","label":"generate-graphify.cjs","path":"scripts/generate-graphify.cjs","type":"module","community":"Automation Scripts","lines":451,"size":48,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module generate-graphify.cjs in Automation Scripts"},{"id":"src/app.ts","label":"app.ts","path":"src/app.ts","type":"module","community":"Gateway Core & Server Lifecycle","lines":322,"size":45,"exports":[],"imports":["src/plugins/auth.plugin.ts","src/routes/auth.routes.ts","src/routes/products.routes.ts","src/routes/orders.routes.ts","src/routes/seller.routes.ts","src/routes/admin.routes.ts","src/routes/super-admin.routes.ts","src/routes/categories.routes.ts","src/routes/bespoke.routes.ts","src/db/supabase.ts"],"inDegree":2,"outDegree":10,"description":"Fastify application factory, Helmet security, rate limiter, and CORS"},{"id":"src/config/env.ts","label":"env.ts","path":"src/config/env.ts","type":"config","community":"Configuration & Env Validation","lines":31,"size":14,"exports":["Env","env"],"imports":[],"inDegree":1,"outDegree":0,"description":"Module env.ts in Configuration & Env Validation"},{"id":"src/db/catalog.ts","label":"catalog.ts","path":"src/db/catalog.ts","type":"database","community":"Database & Realtime Connectors","lines":120,"size":27,"exports":["Product","categories","products"],"imports":[],"inDegree":1,"outDegree":0,"description":"Module catalog.ts in Database & Realtime Connectors"},{"id":"src/db/supabase.ts","label":"supabase.ts","path":"src/db/supabase.ts","type":"database","community":"Database & Realtime Connectors","lines":14,"size":12,"exports":["supabase"],"imports":["src/config/env.ts"],"inDegree":11,"outDegree":1,"description":"Supabase client singleton with service role key and WebSocket transport"},{"id":"src/lib/audit.ts","label":"audit.ts","path":"src/lib/audit.ts","type":"module","community":"Infrastructure & Telemetry","lines":35,"size":15,"exports":["AuditLogPayload"],"imports":["src/db/supabase.ts"],"inDegree":3,"outDegree":1,"description":"Module audit.ts in Infrastructure & Telemetry"},{"id":"src/lib/errors.ts","label":"errors.ts","path":"src/lib/errors.ts","type":"module","community":"Infrastructure & Telemetry","lines":16,"size":12,"exports":["AppError","NotFound","Forbidden","Unauthorized","BadRequest"],"imports":[],"inDegree":0,"outDegree":0,"description":"Module errors.ts in Infrastructure & Telemetry"},{"id":"src/plugins/auth.plugin.ts","label":"auth.plugin.ts","path":"src/plugins/auth.plugin.ts","type":"plugin","community":"Security & Auth Guards","lines":50,"size":18,"exports":["authPlugin"],"imports":["src/services/rbac.service.ts"],"inDegree":1,"outDegree":1,"description":"Fastify route decorators (requireRole, authenticate) for RBAC enforcement"},{"id":"src/routes/admin.routes.ts","label":"admin.routes.ts","path":"src/routes/admin.routes.ts","type":"route","community":"Fastify API Routes","lines":366,"size":48,"exports":["adminRoutes"],"imports":["src/db/supabase.ts","src/lib/audit.ts","src/services/catalog.service.ts"],"inDegree":1,"outDegree":3,"description":"Operations curator dashboard, product approvals, and artisan lifecycle"},{"id":"src/routes/auth.routes.ts","label":"auth.routes.ts","path":"src/routes/auth.routes.ts","type":"route","community":"Fastify API Routes","lines":336,"size":46,"exports":["authRoutes"],"imports":["src/services/auth.service.ts","src/services/rbac.service.ts","src/services/password.service.ts","src/db/supabase.ts"],"inDegree":1,"outDegree":4,"description":"Authentication gateway for patron OTP and administrative email+password sessions"},{"id":"src/routes/bespoke.routes.ts","label":"bespoke.routes.ts","path":"src/routes/bespoke.routes.ts","type":"route","community":"Fastify API Routes","lines":119,"size":27,"exports":["bespokeRoutes"],"imports":["src/db/supabase.ts"],"inDegree":1,"outDegree":1,"description":"Heritage bespoke couture commission pipeline and artisan proposals"},{"id":"src/routes/categories.routes.ts","label":"categories.routes.ts","path":"src/routes/categories.routes.ts","type":"route","community":"Fastify API Routes","lines":32,"size":14,"exports":["categoriesRoutes"],"imports":["src/db/supabase.ts"],"inDegree":1,"outDegree":1,"description":"Taxonomy, collection management, and storefront banner management"},{"id":"src/routes/orders.routes.ts","label":"orders.routes.ts","path":"src/routes/orders.routes.ts","type":"route","community":"Fastify API Routes","lines":250,"size":40,"exports":["ordersRoutes"],"imports":["src/services/catalog.service.ts","src/db/supabase.ts"],"inDegree":1,"outDegree":2,"description":"Cart checkout sessions, Razorpay signatures, and patron order tracking"},{"id":"src/routes/products.routes.ts","label":"products.routes.ts","path":"src/routes/products.routes.ts","type":"route","community":"Fastify API Routes","lines":148,"size":30,"exports":["productsRoutes"],"imports":["src/services/catalog.service.ts"],"inDegree":1,"outDegree":1,"description":"Curated luxury catalog retrieval, inventory checks, and product searches"},{"id":"src/routes/seller.routes.ts","label":"seller.routes.ts","path":"src/routes/seller.routes.ts","type":"route","community":"Fastify API Routes","lines":458,"size":48,"exports":["sellerRoutes"],"imports":["src/db/supabase.ts","src/lib/audit.ts","src/services/catalog.service.ts"],"inDegree":1,"outDegree":3,"description":"Artisan guild atelier telemetry, portfolio submissions, and payouts"},{"id":"src/routes/super-admin.routes.ts","label":"super-admin.routes.ts","path":"src/routes/super-admin.routes.ts","type":"route","community":"Fastify API Routes","lines":518,"size":48,"exports":["superAdminRoutes"],"imports":["src/db/supabase.ts","src/lib/audit.ts","src/services/password.service.ts"],"inDegree":1,"outDegree":3,"description":"Executive Super Admin governance, admin privileges, password reset, and revenue"},{"id":"src/server.ts","label":"server.ts","path":"src/server.ts","type":"module","community":"Gateway Core & Server Lifecycle","lines":49,"size":18,"exports":[],"imports":["src/app.ts"],"inDegree":0,"outDegree":1,"description":"Process entrypoint, HTTP server listener, and graceful shutdown handlers"},{"id":"src/services/auth.service.ts","label":"auth.service.ts","path":"src/services/auth.service.ts","type":"service","community":"Domain Business Services","lines":226,"size":38,"exports":["generateOtp","generateHmacToken","verifyHmacToken"],"imports":[],"inDegree":1,"outDegree":0,"description":"Cryptographic HMAC OTP generation, validation, and Resend email client"},{"id":"src/services/catalog.service.ts","label":"catalog.service.ts","path":"src/services/catalog.service.ts","type":"service","community":"Domain Business Services","lines":187,"size":34,"exports":["invalidateCatalogCache"],"imports":["src/db/supabase.ts","src/db/catalog.ts"],"inDegree":4,"outDegree":2,"description":"Module catalog.service.ts in Domain Business Services"},{"id":"src/services/password.service.ts","label":"password.service.ts","path":"src/services/password.service.ts","type":"service","community":"Domain Business Services","lines":30,"size":14,"exports":["DEFAULT_ADMIN_PASSWORD"],"imports":[],"inDegree":2,"outDegree":0,"description":"bcrypt-based password hashing (12 rounds) and default credential verification"},{"id":"src/services/rbac.service.ts","label":"rbac.service.ts","path":"src/services/rbac.service.ts","type":"service","community":"Domain Business Services","lines":55,"size":19,"exports":["AppRole"],"imports":["src/db/supabase.ts"],"inDegree":2,"outDegree":1,"description":"Authoritative multi-tier role resolution with hardcoded founder seeds"},{"id":"test/api.test.ts","label":"api.test.ts","path":"test/api.test.ts","type":"test","community":"Test Suites & Verification","lines":134,"size":29,"exports":[],"imports":["src/app.ts"],"inDegree":0,"outDegree":1,"description":"Module api.test.ts in Test Suites & Verification"},{"id":"tsconfig.json","label":"tsconfig.json","path":"tsconfig.json","type":"module","community":"Configuration & Manifests","lines":18,"size":12,"exports":[],"imports":[],"inDegree":0,"outDegree":0,"description":"Module tsconfig.json in Configuration & Manifests"}],"edges":[{"source":"src/app.ts","target":"src/plugins/auth.plugin.ts","type":"imports"},{"source":"src/app.ts","target":"src/routes/auth.routes.ts","type":"imports"},{"source":"src/app.ts","target":"src/routes/products.routes.ts","type":"imports"},{"source":"src/app.ts","target":"src/routes/orders.routes.ts","type":"imports"},{"source":"src/app.ts","target":"src/routes/seller.routes.ts","type":"imports"},{"source":"src/app.ts","target":"src/routes/admin.routes.ts","type":"imports"},{"source":"src/app.ts","target":"src/routes/super-admin.routes.ts","type":"imports"},{"source":"src/app.ts","target":"src/routes/categories.routes.ts","type":"imports"},{"source":"src/app.ts","target":"src/routes/bespoke.routes.ts","type":"imports"},{"source":"src/app.ts","target":"src/db/supabase.ts","type":"imports"},{"source":"src/db/supabase.ts","target":"src/config/env.ts","type":"imports"},{"source":"src/lib/audit.ts","target":"src/db/supabase.ts","type":"imports"},{"source":"src/plugins/auth.plugin.ts","target":"src/services/rbac.service.ts","type":"imports"},{"source":"src/routes/admin.routes.ts","target":"src/db/supabase.ts","type":"imports"},{"source":"src/routes/admin.routes.ts","target":"src/lib/audit.ts","type":"imports"},{"source":"src/routes/admin.routes.ts","target":"src/services/catalog.service.ts","type":"imports"},{"source":"src/routes/auth.routes.ts","target":"src/services/auth.service.ts","type":"imports"},{"source":"src/routes/auth.routes.ts","target":"src/services/rbac.service.ts","type":"imports"},{"source":"src/routes/auth.routes.ts","target":"src/services/password.service.ts","type":"imports"},{"source":"src/routes/auth.routes.ts","target":"src/db/supabase.ts","type":"imports"},{"source":"src/routes/bespoke.routes.ts","target":"src/db/supabase.ts","type":"imports"},{"source":"src/routes/categories.routes.ts","target":"src/db/supabase.ts","type":"imports"},{"source":"src/routes/orders.routes.ts","target":"src/services/catalog.service.ts","type":"imports"},{"source":"src/routes/orders.routes.ts","target":"src/db/supabase.ts","type":"imports"},{"source":"src/routes/products.routes.ts","target":"src/services/catalog.service.ts","type":"imports"},{"source":"src/routes/seller.routes.ts","target":"src/db/supabase.ts","type":"imports"},{"source":"src/routes/seller.routes.ts","target":"src/lib/audit.ts","type":"imports"},{"source":"src/routes/seller.routes.ts","target":"src/services/catalog.service.ts","type":"imports"},{"source":"src/routes/super-admin.routes.ts","target":"src/db/supabase.ts","type":"imports"},{"source":"src/routes/super-admin.routes.ts","target":"src/lib/audit.ts","type":"imports"},{"source":"src/routes/super-admin.routes.ts","target":"src/services/password.service.ts","type":"imports"},{"source":"src/server.ts","target":"src/app.ts","type":"imports"},{"source":"src/services/catalog.service.ts","target":"src/db/supabase.ts","type":"imports"},{"source":"src/services/catalog.service.ts","target":"src/db/catalog.ts","type":"imports"},{"source":"src/services/rbac.service.ts","target":"src/db/supabase.ts","type":"imports"},{"source":"test/api.test.ts","target":"src/app.ts","type":"imports"}]};
+    const communityColors = {"Gateway Core & Server Lifecycle":"#7A2331","Fastify API Routes":"#C27803","Domain Business Services":"#059669","Security & Auth Guards":"#DC2626","Database & Realtime Connectors":"#0284C7","Configuration & Env Validation":"#64748B","Infrastructure & Telemetry":"#7C3AED","Supabase PostgreSQL Migrations":"#D97706","Test Suites & Verification":"#475569","Automation Scripts":"#0891B2","Configuration & Manifests":"#94A3B8"};
+
+    const visNodes = new vis.DataSet(graphData.nodes.map(n => ({
+      id: n.id,
+      label: n.label,
+      title: n.id,
+      value: n.size,
+      color: {
+        background: communityColors[n.community] || '#64748B',
+        border: '#FFFFFF',
+        highlight: { background: '#38BDF8', border: '#FFFFFF' }
+      },
+      font: { color: '#F8FAFC', size: 12, face: 'system-ui' },
+      borderWidth: 1,
+      shadow: true
+    })));
+
+    const visEdges = new vis.DataSet(graphData.edges.map(e => ({
+      from: e.source,
+      to: e.target,
+      arrows: 'to',
+      color: { color: 'rgba(148, 163, 184, 0.25)', highlight: '#38BDF8' },
+      smooth: { type: 'continuous' }
+    })));
+
+    const container = document.getElementById('network');
+    const data = { nodes: visNodes, edges: visEdges };
+    const options = {
+      nodes: { shape: 'dot', scaling: { min: 8, max: 32 } },
+      edges: { width: 1.2 },
+      physics: {
+        forceAtlas2Based: {
+          gravitationalConstant: -36,
+          centralGravity: 0.005,
+          springLength: 85,
+          springConstant: 0.16
+        },
+        maxVelocity: 50,
+        solver: 'forceAtlas2Based',
+        timestep: 0.35,
+        stabilization: { iterations: 150 }
+      },
+      interaction: { hover: true, tooltipDelay: 100 }
+    };
+
+    const network = new vis.Network(container, data, options);
+
+    function showNodeDetails(id) {
+      const node = graphData.nodes.find(n => n.id === id);
+      if (!node) return;
+
+      const incoming = graphData.edges.filter(e => e.target === id).map(e => e.source);
+      const outgoing = graphData.edges.filter(e => e.source === id).map(e => e.target);
+
+      const color = communityColors[node.community] || '#64748B';
+      let html = `
+        <span class="badge" style="background: ${color}; color: #FFFFFF">${node.community}</span>
+        <div class="node-title">${node.label}</div>
+        <div class="node-path">${node.id}</div>
+        <div class="node-desc">${node.description}</div>
+        <div class="meta-grid">
+          <div class="meta-box"><span>Lines of Code</span><strong>${node.lines}</strong></div>
+          <div class="meta-box"><span>Node Tier</span><strong>${node.type.toUpperCase()}</strong></div>
+          <div class="meta-box"><span>Used By</span><strong>${incoming.length} modules</strong></div>
+          <div class="meta-box"><span>Depends On</span><strong>${outgoing.length} modules</strong></div>
+        </div>
+        <div class="section-head">Dependents (${incoming.length})</div>
+        ${incoming.length ? incoming.map(src => `<a class="link-pill" onclick="selectNode('${src}')">${src}</a>`).join('') : '<p style="color:#64748B; font-size:12px;">No incoming dependents</p>'}
+        <div class="section-head">Dependencies (${outgoing.length})</div>
+        ${outgoing.length ? outgoing.map(tgt => `<a class="link-pill" onclick="selectNode('${tgt}')">${tgt}</a>`).join('') : '<p style="color:#64748B; font-size:12px;">None (Leaf Module)</p>'}
+      `;
+
+      document.getElementById('sidebar-content').innerHTML = html;
+    }
+
+    window.selectNode = function(id) {
+      network.selectNodes([id]);
+      network.focus(id, { scale: 1.2, animation: true });
+      showNodeDetails(id);
+    };
+
+    network.on('click', function(params) {
+      if (params.nodes.length > 0) {
+        showNodeDetails(params.nodes[0]);
+      }
+    });
+
+    document.getElementById('search').addEventListener('input', function(e) {
+      const q = e.target.value.toLowerCase().trim();
+      if (!q) return;
+      const match = graphData.nodes.find(n => n.id.toLowerCase().includes(q) || n.label.toLowerCase().includes(q));
+      if (match) {
+        selectNode(match.id);
+      }
+    });
+
+    document.getElementById('community-filter').addEventListener('change', function(e) {
+      const comm = e.target.value;
+      if (comm === 'all') {
+        visNodes.update(graphData.nodes.map(n => ({ id: n.id, hidden: false })));
+      } else {
+        visNodes.update(graphData.nodes.map(n => ({ id: n.id, hidden: n.community !== comm })));
+      }
+      network.fit({ animation: true });
+    });
+
+    document.getElementById('reset-zoom').addEventListener('click', function() {
+      network.fit({ animation: true });
+    });
+  </script>
+</body>
+</html>
