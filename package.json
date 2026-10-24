@@ -24,6 +24,7 @@
     "@supabase/supabase-js": "^2.109.0",
     "@types/node": "^22.10.2",
     "@types/ws": "^8.5.13",
+    "bcryptjs": "^3.0.3",
     "dotenv": "^16.4.7",
     "fastify": "^5.2.1",
     "fastify-plugin": "^6.0.1",
@@ -32,6 +33,7 @@
     "ws": "^8.21.0"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.10.2",
     "@types/ws": "^8.5.13",
     "tsx": "^4.19.2",
