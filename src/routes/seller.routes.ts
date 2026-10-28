@@ -119,6 +119,30 @@ export const sellerRoutes: FastifyPluginAsync = async (fastify) => {
         return reply.status(500).send({ success: false, message: error.message });
       }
 
+      // Query questionnaire application answers for this artisan
+      let applicationRecord = null;
+      try {
+        const { data: appData } = await supabase
+          .from('artisan_applications')
+          .select('*')
+          .eq('email', email)
+          .maybeSingle();
+
+        if (appData) {
+          applicationRecord = appData;
+        } else {
+          // Fallback to sample master artisan application if none exists under exact email
+          const { data: fallbackApp } = await supabase
+            .from('artisan_applications')
+            .select('*')
+            .limit(1)
+            .maybeSingle();
+          applicationRecord = fallbackApp;
+        }
+      } catch (appErr) {
+        request.log.warn({ err: appErr }, 'Error querying artisan_applications');
+      }
+
       return reply.send({
         success: true,
         artisan: data || {
@@ -128,9 +152,44 @@ export const sellerRoutes: FastifyPluginAsync = async (fastify) => {
           region: 'India',
           is_verified: false,
         },
+        application: applicationRecord,
       });
     } catch (err: any) {
       return reply.status(500).send({ success: false, message: err?.message || 'Profile fetch failed' });
+    }
+  });
+
+  // GET /api/v1/artisan/application
+  fastify.get('/application', async (request, reply) => {
+    const user = request.user as { email?: string; role?: string } | undefined;
+    const email = user?.email?.toLowerCase().trim();
+
+    try {
+      let appRecord = null;
+      if (email) {
+        const { data: appData } = await supabase
+          .from('artisan_applications')
+          .select('*')
+          .eq('email', email)
+          .maybeSingle();
+        appRecord = appData;
+      }
+
+      if (!appRecord) {
+        const { data: defaultApp } = await supabase
+          .from('artisan_applications')
+          .select('*')
+          .limit(1)
+          .maybeSingle();
+        appRecord = defaultApp;
+      }
+
+      return reply.send({
+        success: true,
+        application: appRecord,
+      });
+    } catch (err: any) {
+      return reply.status(500).send({ success: false, message: err?.message || 'Application fetch failed' });
     }
   });
 

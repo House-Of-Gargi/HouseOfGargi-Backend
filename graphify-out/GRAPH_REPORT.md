@@ -1,6 +1,6 @@
 # House of Gargi Backend — System Topology & Architectural Graph (Graphify)
 
-> Generated on Sat, 24 Oct 2026 14:10:43 GMT | Total Modules: **45** | Total Dependencies: **36**
+> Generated on Wed, 28 Oct 2026 11:02:57 GMT | Total Modules: **45** | Total Dependencies: **36**
 
 ## Community Cluster Metrics
 
@@ -99,7 +99,7 @@
 - **`src/routes/categories.routes.ts`** (32 lines) — *Taxonomy, collection management, and storefront banner management* [In: 1, Out: 1]
 - **`src/routes/orders.routes.ts`** (250 lines) — *Cart checkout sessions, Razorpay signatures, and patron order tracking* [In: 1, Out: 2]
 - **`src/routes/products.routes.ts`** (148 lines) — *Curated luxury catalog retrieval, inventory checks, and product searches* [In: 1, Out: 1]
-- **`src/routes/seller.routes.ts`** (458 lines) — *Artisan guild atelier telemetry, portfolio submissions, and payouts* [In: 1, Out: 3]
+- **`src/routes/seller.routes.ts`** (517 lines) — *Artisan guild atelier telemetry, portfolio submissions, and payouts* [In: 1, Out: 3]
 - **`src/routes/super-admin.routes.ts`** (518 lines) — *Executive Super Admin governance, admin privileges, password reset, and revenue* [In: 1, Out: 3]
 
 ### Domain Business Services

@@ -1,7 +1,7 @@
 {
   "project": "House of Gargi - Backend Atelier API Gateway",
   "version": "1.0.0",
-  "generatedAt": "2026-10-24T14:10:43.485Z",
+  "generatedAt": "2026-10-28T11:02:57.321Z",
   "metrics": {
     "totalFiles": 45,
     "totalDependencies": 36,
@@ -641,7 +641,7 @@
       "path": "src/routes/seller.routes.ts",
       "type": "route",
       "community": "Fastify API Routes",
-      "lines": 458,
+      "lines": 517,
       "size": 48,
       "exports": [
         "sellerRoutes"
