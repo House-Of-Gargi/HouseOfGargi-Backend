@@ -1,7 +1,7 @@
 {
   "project": "House of Gargi - Backend Atelier API Gateway",
   "version": "1.0.0",
-  "generatedAt": "2026-10-28T11:02:57.321Z",
+  "generatedAt": "2026-10-29T09:09:03.187Z",
   "metrics": {
     "totalFiles": 45,
     "totalDependencies": 36,
@@ -547,8 +547,8 @@
       "path": "src/routes/auth.routes.ts",
       "type": "route",
       "community": "Fastify API Routes",
-      "lines": 336,
-      "size": 46,
+      "lines": 348,
+      "size": 47,
       "exports": [
         "authRoutes"
       ],
@@ -697,8 +697,8 @@
       "path": "src/services/auth.service.ts",
       "type": "service",
       "community": "Domain Business Services",
-      "lines": 226,
-      "size": 38,
+      "lines": 215,
+      "size": 37,
       "exports": [
         "generateOtp",
         "generateHmacToken",

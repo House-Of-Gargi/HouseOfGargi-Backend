@@ -1,6 +1,6 @@
 # House of Gargi Backend — System Topology & Architectural Graph (Graphify)
 
-> Generated on Wed, 28 Oct 2026 11:02:57 GMT | Total Modules: **45** | Total Dependencies: **36**
+> Generated on Thu, 29 Oct 2026 09:09:03 GMT | Total Modules: **45** | Total Dependencies: **36**
 
 ## Community Cluster Metrics
 
@@ -94,7 +94,7 @@
 ### Fastify API Routes
 
 - **`src/routes/admin.routes.ts`** (366 lines) — *Operations curator dashboard, product approvals, and artisan lifecycle* [In: 1, Out: 3]
-- **`src/routes/auth.routes.ts`** (336 lines) — *Authentication gateway for patron OTP and administrative email+password sessions* [In: 1, Out: 4]
+- **`src/routes/auth.routes.ts`** (348 lines) — *Authentication gateway for patron OTP and administrative email+password sessions* [In: 1, Out: 4]
 - **`src/routes/bespoke.routes.ts`** (119 lines) — *Heritage bespoke couture commission pipeline and artisan proposals* [In: 1, Out: 1]
 - **`src/routes/categories.routes.ts`** (32 lines) — *Taxonomy, collection management, and storefront banner management* [In: 1, Out: 1]
 - **`src/routes/orders.routes.ts`** (250 lines) — *Cart checkout sessions, Razorpay signatures, and patron order tracking* [In: 1, Out: 2]
@@ -104,7 +104,7 @@
 
 ### Domain Business Services
 
-- **`src/services/auth.service.ts`** (226 lines) — *Cryptographic HMAC OTP generation, validation, and Resend email client* [In: 1, Out: 0]
+- **`src/services/auth.service.ts`** (215 lines) — *Cryptographic HMAC OTP generation, validation, and Resend email client* [In: 1, Out: 0]
 - **`src/services/catalog.service.ts`** (187 lines) — *Module catalog.service.ts in Domain Business Services* [In: 4, Out: 2]
 - **`src/services/password.service.ts`** (30 lines) — *bcrypt-based password hashing (12 rounds) and default credential verification* [In: 2, Out: 0]
 - **`src/services/rbac.service.ts`** (55 lines) — *Authoritative multi-tier role resolution with hardcoded founder seeds* [In: 2, Out: 1]
