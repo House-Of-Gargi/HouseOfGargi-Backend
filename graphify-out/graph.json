@@ -1,7 +1,7 @@
 {
   "project": "House of Gargi - Backend Atelier API Gateway",
   "version": "1.0.0",
-  "generatedAt": "2026-10-29T09:09:03.187Z",
+  "generatedAt": "2026-10-29T09:17:21.223Z",
   "metrics": {
     "totalFiles": 45,
     "totalDependencies": 36,
@@ -768,8 +768,8 @@
       "path": "test/api.test.ts",
       "type": "test",
       "community": "Test Suites & Verification",
-      "lines": 134,
-      "size": 29,
+      "lines": 204,
+      "size": 36,
       "exports": [],
       "imports": [
         "src/app.ts"

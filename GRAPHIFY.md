@@ -1,6 +1,6 @@
 # House of Gargi Backend — System Topology & Architectural Graph (Graphify)
 
-> Generated on Thu, 29 Oct 2026 09:09:03 GMT | Total Modules: **45** | Total Dependencies: **36**
+> Generated on Thu, 29 Oct 2026 09:17:21 GMT | Total Modules: **45** | Total Dependencies: **36**
 
 ## Community Cluster Metrics
 
@@ -111,5 +111,5 @@
 
 ### Test Suites & Verification
 
-- **`test/api.test.ts`** (134 lines) — *Module api.test.ts in Test Suites & Verification* [In: 0, Out: 1]
+- **`test/api.test.ts`** (204 lines) — *Module api.test.ts in Test Suites & Verification* [In: 0, Out: 1]
 
