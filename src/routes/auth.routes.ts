@@ -139,22 +139,22 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       const { email, portal } = request.body;
       const cleanEmail = email.toLowerCase().trim();
 
-      const resolvedRole = await getBackendUserRole(cleanEmail);
-
+      // Administrative access is strictly restricted to email and password authentication at /admin/login.
       if (portal === 'admin') {
-        if (resolvedRole !== 'admin' && resolvedRole !== 'super_admin') {
-          return reply.status(403).send({
-            success: false,
-            message: 'Access restricted. This email is not registered as an Admin or Super Admin with House of Gargi.',
-          });
-        }
+        return reply.status(403).send({
+          success: false,
+          message: 'Administrative portal access requires email and password authentication at /admin/login.',
+        });
       }
 
+      const resolvedRole = await getBackendUserRole(cleanEmail);
       const otp = generateOtp();
       const expiresAt = Date.now() + 10 * 60 * 1000; // 10 minutes
       const verificationToken = generateHmacToken(cleanEmail, otp, expiresAt);
 
-      const sent = await sendOtpEmail(cleanEmail, otp, portal, resolvedRole);
+      // Explicitly dispatch customer template for customer requests (or artisan template if portal === 'artisan')
+      const targetPortal = portal === 'artisan' ? 'artisan' : 'customer';
+      const sent = await sendOtpEmail(cleanEmail, otp, targetPortal, resolvedRole);
 
       return reply.status(200).send({
         success: true,
@@ -177,9 +177,16 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       },
     },
     async (request, reply) => {
-      const { email, otp, token: rawToken, verificationToken: rawVerifToken, expiresAt } = request.body;
+      const { email, otp, token: rawToken, verificationToken: rawVerifToken, expiresAt, portal } = request.body;
       const cleanEmail = email.toLowerCase().trim();
       const token = (rawToken || rawVerifToken || '').trim();
+
+      if (portal === 'admin') {
+        return reply.status(403).send({
+          success: false,
+          message: 'Administrative portal access requires email and password authentication at /admin/login.',
+        });
+      }
 
       if (!token) {
         return reply.status(401).send({
@@ -212,12 +219,17 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
       // 3. Mark token as used to prevent any replay
       await recordUsedToken(token, cleanEmail);
 
-      // 4. Strict role resolution from database
-      const resolvedRole = await getBackendUserRole(cleanEmail);
+      // 4. Determine session role:
+      // The ONLY way to access the administrative portal is through email + password matching the backend.
+      // Customer portal OTP verification NEVER grants administrative authority.
+      let issuedRole = 'patron';
+      if (portal === 'artisan') {
+        issuedRole = 'artisan';
+      }
 
       // 5. Issue JWT token
       const jwtToken = fastify.jwt.sign(
-        { email: cleanEmail, role: resolvedRole },
+        { email: cleanEmail, role: issuedRole },
         { expiresIn: '30d' }
       );
 
@@ -237,7 +249,7 @@ export const authRoutes: FastifyPluginAsync = async (fastify) => {
         token: jwtToken,
         user: {
           email: cleanEmail,
-          role: resolvedRole,
+          role: issuedRole,
           authenticatedAt: new Date().toISOString(),
         },
       });

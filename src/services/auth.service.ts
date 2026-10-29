@@ -76,22 +76,11 @@ export async function sendOtpEmail(
 ): Promise<boolean> {
   const cleanEmail = email.toLowerCase().trim();
 
-  // Authoritative super admin / admin detection
-  const isSuperAdminOrAdmin =
-    portal === 'admin' ||
-    role === 'super_admin' ||
-    role === 'admin' ||
-    cleanEmail === 'tanmaysaagar@gmail.com' ||
-    cleanEmail === 'tanmaysaaagr@gmail.com' ||
-    cleanEmail === 'tanmaysaagr@gmail.com' ||
-    cleanEmail === 'gargisaha1508@gmail.com' ||
-    cleanEmail === 'shawsumit6286@gmail.com' ||
-    cleanEmail === 'sumigreat2705@gmail.com' ||
-    cleanEmail === 'sumitgreat2705@gmail.com' ||
-    cleanEmail === 'admin@gargisaha.com' ||
-    cleanEmail === 'curator@gargisaha.com';
-
-  const isArtisan = !isSuperAdminOrAdmin && (portal === 'artisan' || role === 'artisan');
+  // Admin emails are purely authenticated via email and password at /admin/login.
+  // If ANY email (including admin or leadership emails) requests login on the customer portal,
+  // we strictly dispatch the customer Resend email template, never the administrative template.
+  const isSuperAdminOrAdmin = portal === 'admin';
+  const isArtisan = portal === 'artisan';
 
   let emailSubject = '';
   let emailTitle = '';
