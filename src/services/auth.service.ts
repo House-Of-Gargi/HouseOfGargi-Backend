@@ -76,10 +76,10 @@ export async function sendOtpEmail(
 ): Promise<boolean> {
   const cleanEmail = email.toLowerCase().trim();
 
-  // Admin emails are purely authenticated via email and password at /admin/login.
-  // If ANY email (including admin or leadership emails) requests login on the customer portal,
-  // we strictly dispatch the customer Resend email template, never the administrative template.
-  const isSuperAdminOrAdmin = portal === 'admin';
+  // Only TWO email templates exist in the entire system:
+  // 1. Artisan Atelier Portal (portal === 'artisan')
+  // 2. Customer Portal (all other requests, regardless of email address)
+  // Admin and Super Admin access is strictly password-authenticated at /admin/login and NEVER sends OTP emails.
   const isArtisan = portal === 'artisan';
 
   let emailSubject = '';
@@ -88,28 +88,7 @@ export async function sendOtpEmail(
   let bodyContent = '';
   let expiryNotice = '';
 
-  if (isSuperAdminOrAdmin) {
-    const roleTitle =
-      role === 'super_admin' ||
-      cleanEmail.includes('tanmay') ||
-      cleanEmail.includes('gargisaha') ||
-      cleanEmail.includes('shawsumit')
-        ? 'Super Administrator'
-        : 'Operations Administrator';
-
-    emailSubject = `${otp} is your House of Gargi Administrative Portal Access Code`;
-    emailTitle = 'House of Gargi Administrative Access Code';
-    emailSubtitle = 'ADMINISTRATIVE &amp; EXECUTIVE COMMAND';
-    bodyContent = `
-      <p style="margin: 0 0 16px 0; font-size: 15px; color: #4A3C33; line-height: 1.65;">
-        Administrative login requested for <a href="mailto:${cleanEmail}" style="color: #0b57d0; text-decoration: underline; font-weight: 600;">${cleanEmail}</a>.
-      </p>
-      <p style="margin: 0 0 20px 0; font-size: 13.5px; color: #8C7B70;">
-        Role Privilege: <strong style="color: #7A2331;">${roleTitle}</strong>
-      </p>
-    `;
-    expiryNotice = 'This code expires in <strong>10 minutes</strong>. Strictly restricted to verified House of Gargi leadership.';
-  } else if (isArtisan) {
+  if (isArtisan) {
     emailSubject = `${otp} is your House of Gargi Artisan Portal Access Code`;
     emailTitle = 'House of Gargi Artisan Atelier Access Code';
     emailSubtitle = 'ARTISAN ATELIER PORTAL';
@@ -123,7 +102,7 @@ export async function sendOtpEmail(
     `;
     expiryNotice = 'This code expires in <strong>10 minutes</strong>. Strictly restricted to registered House of Gargi artisan partners.';
   } else {
-    // Customer Portal - Follows the exact same elegant UI architecture as the Super Admin template
+    // Pure Customer / Patron Portal Template (for all shoppers, customers, and any email on storefront)
     emailSubject = `Your House of Gargi Verification Code: ${otp}`;
     emailTitle = 'House of Gargi Verification Code';
     emailSubtitle = 'HOUSE OF GARGI PORTAL';
