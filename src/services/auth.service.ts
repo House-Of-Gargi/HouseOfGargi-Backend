@@ -77,7 +77,7 @@ export async function sendOtpEmail(
   const cleanEmail = email.toLowerCase().trim();
 
   // Only TWO email templates exist in the entire system:
-  // 1. Artisan Atelier Portal (portal === 'artisan')
+  // 1. Artisan Portal (portal === 'artisan')
   // 2. Customer Portal (all other requests, regardless of email address)
   // Admin and Super Admin access is strictly password-authenticated at /admin/login and NEVER sends OTP emails.
   const isArtisan = portal === 'artisan';
@@ -90,8 +90,8 @@ export async function sendOtpEmail(
 
   if (isArtisan) {
     emailSubject = `${otp} is your House of Gargi Artisan Portal Access Code`;
-    emailTitle = 'House of Gargi Artisan Atelier Access Code';
-    emailSubtitle = 'ARTISAN ATELIER PORTAL';
+    emailTitle = 'House of Gargi Artisan Portal Access Code';
+    emailSubtitle = 'ARTISAN PORTAL';
     bodyContent = `
       <p style="margin: 0 0 16px 0; font-size: 15px; color: #4A3C33; line-height: 1.65;">
         Artisan workshop login requested for <a href="mailto:${cleanEmail}" style="color: #0b57d0; text-decoration: underline; font-weight: 600;">${cleanEmail}</a>.
