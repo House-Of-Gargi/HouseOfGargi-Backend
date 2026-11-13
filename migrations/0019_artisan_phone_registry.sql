@@ -25,3 +25,4 @@ INSERT INTO public.user_roles (user_email, role, assigned_by, created_at, update
 VALUES ('team.anga9@gmail.com', 'artisan', 'MIGRATION_0019_PHONE_REGISTRY', NOW(), NOW())
 ON CONFLICT (user_email) 
 DO UPDATE SET role = 'artisan', updated_at = NOW();
+
