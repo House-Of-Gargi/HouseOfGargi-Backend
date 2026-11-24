@@ -215,10 +215,22 @@ export const sellerRoutes: FastifyPluginAsync = async (fastify) => {
     delete updates.is_verified;
     updates.updated_at = new Date().toISOString();
 
+    const mappedProfUpdates: Record<string, any> = {
+      updated_at: new Date().toISOString(),
+    };
+    if (updates.full_name || updates.name) mappedProfUpdates.full_name = (updates.full_name || updates.name).trim();
+    if (updates.craft_specialty || updates.artStyle || updates.role) mappedProfUpdates.craft_specialty = (updates.craft_specialty || updates.artStyle || updates.role).trim();
+    if (updates.region || updates.regionalBelonging || updates.state) mappedProfUpdates.region = (updates.region || updates.regionalBelonging || updates.state).trim();
+    if (updates.lineage_story || updates.description || updates.bio) mappedProfUpdates.lineage_story = (updates.lineage_story || updates.description || updates.bio).trim();
+    const expNum = parseInt(String(updates.experience_years || updates.experience || '').replace(/\D/g, ''), 10);
+    if (!isNaN(expNum) && expNum > 0) mappedProfUpdates.experience_years = expNum;
+    if (updates.phone) mappedProfUpdates.phone = updates.phone;
+    if (updates.avatar_url || updates.profileImage) mappedProfUpdates.avatar_url = updates.avatar_url || updates.profileImage;
+
     try {
       const { data } = await supabase
         .from('artisan_profiles')
-        .update(updates)
+        .update(mappedProfUpdates)
         .eq('user_email', email)
         .select()
         .maybeSingle();
@@ -229,6 +241,7 @@ export const sellerRoutes: FastifyPluginAsync = async (fastify) => {
         if (updates.name || updates.full_name) appUpdates.name = updates.name || updates.full_name;
         if (updates.artStyle || updates.craft_specialty) appUpdates.type_of_art = updates.artStyle || updates.craft_specialty;
         if (updates.regionalBelonging || updates.region || updates.state) appUpdates.state = updates.regionalBelonging || updates.region || updates.state;
+        if (expNum && expNum > 0) appUpdates.age = expNum > 20 ? expNum : undefined;
         
         await supabase
           .from('artisan_applications')
